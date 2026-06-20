@@ -1,0 +1,296 @@
+[
+  {
+    "key": "general",
+    "label": "常规",
+    "groups": [
+      {
+        "label": "主题",
+        "settings": [
+          {
+            "key": "theme",
+            "label": "界面主题",
+            "type": "combo",
+            "default": "dark",
+            "options": [
+              { "label": "暗色主题", "value": "dark" },
+              { "label": "亮色主题", "value": "light" }
+            ],
+            "description": "选择程序整体外观主题，暗色护眼、亮色清晰"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "key": "port_protection",
+    "label": "端口保护",
+    "groups": [
+      {
+        "label": "禁止终止的端口",
+        "settings": [
+          {
+            "key": "protected_ports",
+            "label": "保护端口列表",
+            "type": "text",
+            "default": "",
+            "description": "以下端口不会被杀死，系统关键端口 135/445/3389 始终受保护。多个端口用逗号分隔，如 80,443,3306"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "key": "output",
+    "label": "输出",
+    "groups": [
+      {
+        "label": "日志面板",
+        "settings": [
+          {
+            "key": "output.max_lines",
+            "label": "最大输出行数",
+            "type": "spinbox",
+            "default": 5000,
+            "min": 500,
+            "max": 50000,
+            "step": 500,
+            "description": "超过此行数后自动删除旧行，防止卡顿"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "key": "notifications",
+    "label": "通知",
+    "groups": [
+      {
+        "label": "通用",
+        "settings": [
+          {
+            "key": "notifications.enabled",
+            "label": "启用通知",
+            "type": "checkbox",
+            "default": true,
+            "description": "关闭后所有通知类型都不会显示，但后台仍会记录"
+          },
+          {
+            "key": "notifications.max_count",
+            "label": "最大通知数",
+            "type": "spinbox",
+            "default": 100,
+            "min": 10,
+            "max": 1000,
+            "step": 10,
+            "description": "超出上限后自动删除最旧的通知，避免堆积"
+          }
+        ]
+      },
+      {
+        "label": "通知类型",
+        "settings": [
+          {
+            "key": "notifications.show_vcs_remote",
+            "label": "远程变更",
+            "type": "checkbox",
+            "default": true,
+            "description": "远程仓库有新提交时通知"
+          },
+          {
+            "key": "notifications.show_local_changes",
+            "label": "本地未提交变更",
+            "type": "checkbox",
+            "default": true,
+            "description": "有未提交文件时通知"
+          },
+          {
+            "key": "notifications.show_vcs_conflict",
+            "label": "版本冲突",
+            "type": "checkbox",
+            "default": true,
+            "description": "合并冲突时通知"
+          },
+          {
+            "key": "notifications.show_info",
+            "label": "一般信息",
+            "type": "checkbox",
+            "default": true,
+            "description": "显示一般性通知，如操作成功、状态变更、连接成功等"
+          },
+          {
+            "key": "notifications.show_warning",
+            "label": "警告",
+            "type": "checkbox",
+            "default": true,
+            "description": "显示警告性通知，如项目启动失败、端口占用、操作异常等"
+          },
+          {
+            "key": "notifications.show_error",
+            "label": "错误",
+            "type": "checkbox",
+            "default": true,
+            "description": "显示错误性通知，如进程崩溃、配置文件损坏、意外终止等"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "key": "terminal",
+    "label": "终端",
+    "groups": [
+      {
+        "label": "Shell 配置",
+        "settings": [
+          {
+            "key": "terminal.shell",
+            "label": "默认 Shell",
+            "type": "combo",
+            "default": "cmd",
+            "options": [
+              { "label": "CMD (命令提示符)", "value": "cmd" },
+              { "label": "PowerShell 5", "value": "powershell" },
+              { "label": "PowerShell 7 (Core)", "value": "pwsh" },
+              { "label": "自定义...", "value": "custom" }
+            ],
+            "description": "底部终端面板使用的 Shell 程序"
+          },
+          {
+            "key": "terminal.shell_path",
+            "label": "自定义路径",
+            "type": "text",
+            "default": "",
+            "placeholder": "如 C:\\Program Files\\Git\\bin\\bash.exe",
+            "depends_on": "terminal.shell",
+            "depends_value": "custom",
+            "description": "选择「自定义」时生效，填写可执行文件的完整路径"
+          },
+          {
+            "key": "terminal.work_dir",
+            "label": "工作目录",
+            "type": "text",
+            "default": "",
+            "placeholder": "留空=当前目录，支持 {project_root} 等变量",
+            "description": "终端启动时的初始目录，留空使用程序当前目录"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "key": "update",
+    "label": "更新",
+    "groups": [
+      {
+        "label": "更新策略",
+        "settings": [
+          {
+            "key": "update.type",
+            "label": "检查时机",
+            "type": "combo",
+            "default": "每次启动",
+            "options": [
+              { "label": "每次启动", "value": "每次启动" },
+              { "label": "按频率", "value": "频率" },
+              { "label": "手动检查", "value": "手动检查" }
+            ],
+            "description": "选择何时自动检查更新，手动检查需点击帮助菜单中的检查更新"
+          },
+          {
+            "key": "update.frequency",
+            "label": "检查频率",
+            "type": "combo",
+            "default": "每天",
+            "options": [
+              { "label": "每天", "value": "每天" },
+              { "label": "每三天", "value": "每三天" },
+              { "label": "每周", "value": "每周" },
+              { "label": "每月", "value": "每月" },
+              { "label": "自定义", "value": "自定义" }
+            ],
+            "depends_on": "update.type",
+            "depends_value": "频率",
+            "description": "检查时机设为「按频率」时生效，选择多久检查一次"
+          },
+          {
+            "key": "update.custom_minutes",
+            "label": "自定义间隔",
+            "type": "spinbox",
+            "default": 1440,
+            "min": 1440,
+            "max": 43200,
+            "step": 60,
+            "suffix": " 分钟",
+            "depends_on": "update.frequency",
+            "depends_value": "自定义",
+            "description": "频率设为「自定义」时生效，按指定分钟数间隔检查"
+          }
+        ]
+      },
+      {
+        "label": "更新服务器",
+        "settings": [
+          {
+            "key": "update.url",
+            "label": "服务器地址",
+            "type": "text",
+            "default": "http://11.1.1.179:8099",
+            "description": "局域网更新服务器的地址"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "key": "scheduled_checks",
+    "label": "定时检查",
+    "groups": [
+      {
+        "label": "远程更新检查",
+        "settings": [
+          {
+            "key": "scheduled_checks.remote_enabled",
+            "label": "启用",
+            "type": "checkbox",
+            "default": false,
+            "description": "开启后按下方间隔定时检查仓库是否有新提交"
+          },
+          {
+            "key": "scheduled_checks.remote_interval_minutes",
+            "label": "检查间隔",
+            "type": "spinbox",
+            "default": 30,
+            "min": 5,
+            "max": 480,
+            "suffix": " 分钟",
+            "depends_on": "scheduled_checks.remote_enabled",
+            "description": "两次远程检查之间的等待时间"
+          }
+        ]
+      },
+      {
+        "label": "本地未提交检查",
+        "settings": [
+          {
+            "key": "scheduled_checks.local_enabled",
+            "label": "启用",
+            "type": "checkbox",
+            "default": false,
+            "description": "开启后按下方间隔定时检查项目目录是否有未提交的本地变更"
+          },
+          {
+            "key": "scheduled_checks.local_interval_minutes",
+            "label": "检查间隔",
+            "type": "spinbox",
+            "default": 15,
+            "min": 5,
+            "max": 480,
+            "suffix": " 分钟",
+            "depends_on": "scheduled_checks.local_enabled",
+            "description": "两次本地检查之间的等待时间"
+          }
+        ]
+      }
+    ]
+  }
+]

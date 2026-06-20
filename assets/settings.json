@@ -1,0 +1,35 @@
+{
+  "last_source": "default",
+  "theme": "dark",
+  "protected_ports": "",
+  "output": {
+    "max_lines": 1000
+  },
+  "notifications": {
+    "enabled": true,
+    "max_count": 100,
+    "show_vcs_remote": true,
+    "show_local_changes": true,
+    "show_vcs_conflict": true,
+    "show_info": true,
+    "show_warning": true,
+    "show_error": true
+  },
+  "terminal": {
+    "shell": "powershell"
+  },
+  "update": {
+    "type": "每次启动",
+    "frequency": "每天",
+    "custom_minutes": 1440,
+    "url": "http://11.1.1.179:8099",
+    "last_check": 1781417846.3442762
+  },
+  "scheduled_checks": {
+    "remote_enabled": true,
+    "remote_interval_minutes": 30,
+    "local_enabled": true,
+    "local_interval_minutes": 30
+  },
+  "test": null
+}

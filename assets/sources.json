@@ -1,0 +1,10 @@
+{
+  "active": "default",
+  "sources": [
+    {
+      "name": "default",
+      "config_path": "assets/projects.json",
+      "type": "file"
+    }
+  ]
+}

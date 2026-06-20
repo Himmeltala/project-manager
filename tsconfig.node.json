@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "skipLibCheck": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "outDir": "./dist-electron"
+  },
+  "include": [
+    "vite.config.ts",
+    "electron/**/*.ts",
+    "electron-builder.yml",
+    "package.json"
+  ]
+}
