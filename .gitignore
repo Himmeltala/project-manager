@@ -3,5 +3,9 @@ dist
 dist-electron
 release
 .dev
+.claude
+.hermes
 *.log
 package-lock.json
+pnpm-lock.yaml
+out

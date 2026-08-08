@@ -1,7 +1,15 @@
+/*
+ * @Author: zhengrenfu
+ * @Date: 2026-07-14
+ * @LastEditors: zhengrenfu
+ * @LastEditTime: 2026-08-03
+ * @FilePath: \src\stores\project.store.ts
+ * @Description: 项目列表与运行状态管理
+ */
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import type { Project, ProjectSource } from '../types/project'
-import type { RunningInfo, ScriptTask } from '../types/process'
+import type { RunningInfo } from '../types/process'
 
 export const useProjectStore = defineStore('project', () => {
   const projects = ref<Project[]>([])
@@ -9,31 +17,60 @@ export const useProjectStore = defineStore('project', () => {
   const activeSource = ref('')
   const runningInfo = ref<RunningInfo[]>([])
   const runningPaths = ref<Record<string, number | null>>({})
-  // 搜索相关状态，由 SearchBar 组件写入
+  // 项目路径 -> 运行中的脚本命令列表（以路径为键，跨源切换不丢失）
+  const runningScripts = ref<Record<string, string[]>>({})
+  // 构建工具缓存（path -> tool name）
+  const buildTools = ref<Record<string, string | null>>({})
+  // search state, written by SearchBar component
   const searchText = ref('')
   const searchCaseSensitive = ref(false)
   const searchWholeWord = ref(false)
   const searchRegex = ref(false)
 
   async function loadProjects() {
-    const configPath = await window.electronAPI.getDefaultConfigPath()
-    projects.value = await window.electronAPI.loadProjects(configPath)
+    const configPath = await window.electronAPI.invoke('project:getDefaultConfigPath')
+    projects.value = await window.electronAPI.invoke('project:load', configPath)
+    detectBuildTools()
+  }
+
+  /**
+   * 批量检测 npm 项目的构建工具
+   */
+  async function detectBuildTools() {
+    const npmPaths = projects.value
+      .filter((p) => p.projectType === 'npm')
+      .map((p) => p.path)
+      .filter(Boolean)
+    if (npmPaths.length === 0) return
+    try {
+      const result = await window.electronAPI.invoke('buildTool:detectBatch', npmPaths)
+      buildTools.value = { ...buildTools.value, ...result }
+    } catch {
+      // 静默失败
+    }
   }
 
   async function loadSources() {
-    sources.value = await window.electronAPI.listSources(true)
-    activeSource.value = await window.electronAPI.getActiveSource()
+    sources.value = await window.electronAPI.invoke('source:list', true)
+    activeSource.value = await window.electronAPI.invoke('source:getActive')
   }
 
-  // 刷新所有项目的运行状态和进程信息
+  /**
+   * 刷新所有项目运行中的脚本状态
+   */
+  async function refreshRunningScripts() {
+    runningScripts.value = await window.electronAPI.invoke('process:getAllRunningScripts')
+  }
+
+  // 刷新项目运行状态与进程信息
   async function refreshRunningInfo() {
-    runningInfo.value = await window.electronAPI.getRunningInfo()
-    runningPaths.value = await window.electronAPI.getAllRunningPaths()
+    const [info, paths] = await Promise.all([
+      window.electronAPI.invoke('process:getRunningInfo'),
+      window.electronAPI.invoke('process:getAllRunningPaths'),
+    ])
+    runningInfo.value = info
+    runningPaths.value = paths
   }
-
-  // 正在运行的索引集合，用于表格快速判断
-  const runningIndices = computed(() => new Set(runningInfo.value.map((r) => r.index)))
-  const runningPathSet = computed(() => new Set(Object.keys(runningPaths.value)))
 
   return {
     projects,
@@ -41,8 +78,8 @@ export const useProjectStore = defineStore('project', () => {
     activeSource,
     runningInfo,
     runningPaths,
-    runningIndices,
-    runningPathSet,
+    runningScripts,
+    buildTools,
     searchText,
     searchCaseSensitive,
     searchWholeWord,
@@ -50,5 +87,6 @@ export const useProjectStore = defineStore('project', () => {
     loadProjects,
     loadSources,
     refreshRunningInfo,
+    refreshRunningScripts,
   }
 })

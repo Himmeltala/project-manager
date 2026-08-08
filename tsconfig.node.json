@@ -3,11 +3,17 @@
     "composite": true,
     "skipLibCheck": true,
     "module": "ESNext",
+    "target": "ES2022",
     "moduleResolution": "bundler",
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
     "esModuleInterop": true,
-    "outDir": "./dist-electron"
+    "outDir": "./dist-electron",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@electron/*": ["./electron/*"]
+    }
   },
   "include": [
     "vite.config.ts",

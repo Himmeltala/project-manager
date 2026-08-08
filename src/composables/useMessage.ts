@@ -1,4 +1,12 @@
-import { ElMessageBox, ElMessage } from 'element-plus'
+/*
+ * @Author: zhengrenfu
+ * @Date: 2026-07-14
+ * @LastEditors: zhengrenfu
+ * @LastEditTime: 2026-07-25
+ * @FilePath: \src\composables\useMessage.ts
+ * @Description: 消息确认弹窗封装；提示信息改为输出到日志面板
+ */
+import { ElMessageBox } from 'element-plus'
 
 export async function useConfirm(title: string, message: string, danger = false): Promise<boolean> {
   try {
@@ -27,25 +35,17 @@ export async function usePrompt(title: string, label: string, defaultValue = '')
 }
 
 export function useSuccess(text: string) {
-  ElMessage.success(text)
+  window.electronAPI.invoke('system:log', 'info', text)
 }
 
 export function useError(text: string) {
-  ElMessage.error(text)
+  window.electronAPI.invoke('system:log', 'error', text)
 }
 
 export function useWarning(text: string) {
-  ElMessage.warning(text)
+  window.electronAPI.invoke('system:log', 'warning', text)
 }
 
 export function useInfo(text: string) {
-  ElMessage.info(text)
-}
-
-export function useNotify(options: {
-  title: string
-  message: string
-  type?: 'success' | 'warning' | 'error' | 'info'
-}) {
-  ElMessage(options)
+  window.electronAPI.invoke('system:log', 'info', text)
 }

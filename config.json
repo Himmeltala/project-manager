@@ -1,8 +1,0 @@
-{
-  "version": "3.3.1",
-  "description": "基于 Electron 的 Windows 桌面工具，用于管理多个项目的启动、停止、构建、版本控制操作",
-  "author": "zhengrenfu",
-  "year": 2026,
-  "app_name": "项目管理器",
-  "update_url": "http://11.1.1.179:8099"
-}

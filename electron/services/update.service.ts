@@ -1,9 +1,20 @@
+/*
+ * @Author: zhengrenfu
+ * @Date: 2026-07-20
+ * @LastEditors: zhengrenfu
+ * @LastEditTime: 2026-07-20
+ * @FilePath: \electron\services\update.service.ts
+ * @Description: 更新检查与下载服务
+ */
 import { EventEmitter } from 'events'
-import { existsSync, mkdirSync, createWriteStream } from 'fs'
+import { mkdirSync, createWriteStream } from 'fs'
 import { join } from 'path'
 import { get } from 'https'
 import { request as httpGet } from 'http'
 import { URL } from 'url'
+import { tmpdir } from 'os'
+import { execFile } from 'child_process'
+import { app } from 'electron'
 
 export class UpdateService extends EventEmitter {
   private updateUrl: string
@@ -11,14 +22,6 @@ export class UpdateService extends EventEmitter {
   constructor(updateUrl: string = '') {
     super()
     this.updateUrl = updateUrl.replace(/\/+$/, '')
-  }
-
-  setUpdateUrl(url: string): void {
-    this.updateUrl = url.replace(/\/+$/, '')
-  }
-
-  getUpdateUrl(): string {
-    return this.updateUrl
   }
 
   startupCheck(settings: { get: (key: string, defaultVal?: any) => any; set: (key: string, val: any) => void }): void {
@@ -41,23 +44,6 @@ export class UpdateService extends EventEmitter {
       settings.set('update.last_check', now)
       this.checkUpdateAsync()
     }
-  }
-
-  timerCheck(settings: { get: (key: string, defaultVal?: any) => any; set: (key: string, val: any) => void }): boolean {
-    if (!this.updateUrl) return false
-    const updateType = settings.get('update.type', '每次启动')
-    if (updateType === '每次启动' || updateType === '手动检查') return false
-
-    const intervalMinutes = this.getIntervalMinutes(settings)
-    if (intervalMinutes === null) return false
-
-    const now = Date.now()
-    const lastCheck = settings.get('update.last_check', 0)
-    if (now - lastCheck >= intervalMinutes * 60 * 1000) {
-      settings.set('update.last_check', now)
-      this.checkUpdateAsync()
-    }
-    return true
   }
 
   getIntervalMinutes(settings: { get: (key: string, defaultVal?: any) => any }): number | null {
@@ -123,7 +109,7 @@ export class UpdateService extends EventEmitter {
     info: { url: string; filename: string },
     report: (msg: string, pct?: number) => void,
   ): Promise<string> {
-    const tmpDir = join(require('os').tmpdir(), '项目管理器更新')
+    const tmpDir = join(tmpdir(), '项目管理器更新')
     mkdirSync(tmpDir, { recursive: true })
     const destPath = join(tmpDir, info.filename)
 
@@ -141,6 +127,16 @@ export class UpdateService extends EventEmitter {
 
     this.emit('updateDownloaded', destPath)
     return destPath
+  }
+
+  /**
+   * 安装更新包（调用安装程序并退出应用）
+   * @param filePath 安装包路径
+   */
+  installUpdate(filePath: string): void {
+    execFile(filePath, [], (err: any) => {
+      if (!err) app.quit()
+    })
   }
 
   private fetchFileList(): Promise<any[]> {
