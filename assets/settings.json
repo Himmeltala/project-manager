@@ -31,5 +31,6 @@
     "local_enabled": true,
     "local_interval_minutes": 30
   },
-  "test": null
+  "test": null,
+  "openers": "[{\"name\":\"VS Code\",\"path\":\"code.cmd\",\"args\":\"--new-window {path}\"},{\"name\":\"记事本\",\"path\":\"notepad.exe\",\"args\":\"{file}\"},{\"name\":\"Notepad++\",\"path\":\"notepad++.exe\",\"args\":\"{file}\"}]"
 }

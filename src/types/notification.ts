@@ -1,7 +1,16 @@
-/** 通知类型枚举 */
+/*
+ * @Author: zhengrenfu
+ * @Date: 2026-07-14
+ * @LastEditors: zhengrenfu
+ * @LastEditTime: 2026-07-14
+ * @FilePath: \src\types\notification.ts
+ * @Description: 通知数据结构与类型定义
+ */
+
+/** Notification type enum */
 export type NotificationType = 'vcs_remote' | 'vcs_conflict' | 'local_changes' | 'info' | 'warning' | 'error'
 
-/** 单条通知数据 */
+/** Single notification item */
 export interface NotificationItem {
   id: string
   type: NotificationType
@@ -12,7 +21,7 @@ export interface NotificationItem {
   read: boolean
 }
 
-/** 通知类型对应的显示标签和颜色 */
+// Display label and color per notification type
 export const NOTIFICATION_TYPE_META: Record<string, { label: string; color: string }> = {
   vcs_remote: { label: '远程更新', color: 'var(--el-color-primary)' },
   vcs_conflict: { label: '版本冲突', color: 'var(--el-color-danger)' },

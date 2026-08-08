@@ -1,8 +1,16 @@
+/*
+ * @Author: zhengrenfu
+ * @Date: 2026-07-20
+ * @LastEditors: zhengrenfu
+ * @LastEditTime: 2026-07-20
+ * @FilePath: \electron\services\notification.service.ts
+ * @Description: 通知持久化服务
+ */
 import { EventEmitter } from 'events'
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
 import { dirname } from 'path'
 import { randomUUID } from 'crypto'
-import type { NotificationItem, NotificationType } from '../../src/types/notification'
+import type { NotificationItem, NotificationType } from '@/types/notification'
 
 const TYPE_SETTING_MAP: Record<string, string> = {
   vcs_remote: 'notifications.show_vcs_remote',

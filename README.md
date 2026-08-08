@@ -94,12 +94,17 @@
 │   ├── main.ts                # Electron 主进程入口
 │   ├── preload.ts             # 预加载脚本
 │   └── services/              # 业务逻辑
-│       ├── project-manager.service.ts
-│       ├── process-manager.service.ts
+│       ├── project.service.ts         # 项目操作门面（启停/构建/VCS）
+│       ├── project-repository.service.ts # 项目配置 CRUD
+│       ├── process-manager.service.ts # 子进程管理
 │       ├── project-type/      # 项目类型抽象（npm / maven）
 │       ├── vcs/               # VCS 抽象（svn / git）
+│       ├── build-tool/        # 构建工具适配器（webpack/vite/rspack）
+│       ├── proxy-config/      # 代理配置适配器
+│       ├── port-config/       # 端口配置适配器
 │       ├── notification.service.ts
 │       ├── settings.service.ts
+│       ├── tool-discovery.service.ts # 工具发现（JDK/Maven/Tomcat）
 │       └── source-manager.service.ts
 ├── assets/                    # 数据文件（模板 + 运行时生成）
 │   ├── about.md

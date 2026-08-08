@@ -1,7 +1,7 @@
 [
   {
-    "key": "general",
-    "label": "常规",
+    "key": "interface",
+    "label": "界面",
     "groups": [
       {
         "label": "主题",
@@ -12,37 +12,19 @@
             "type": "combo",
             "default": "dark",
             "options": [
-              { "label": "暗色主题", "value": "dark" },
-              { "label": "亮色主题", "value": "light" }
+              {
+                "label": "暗色主题",
+                "value": "dark"
+              },
+              {
+                "label": "亮色主题",
+                "value": "light"
+              }
             ],
             "description": "选择程序整体外观主题，暗色护眼、亮色清晰"
           }
         ]
-      }
-    ]
-  },
-  {
-    "key": "port_protection",
-    "label": "端口保护",
-    "groups": [
-      {
-        "label": "禁止终止的端口",
-        "settings": [
-          {
-            "key": "protected_ports",
-            "label": "保护端口列表",
-            "type": "text",
-            "default": "",
-            "description": "以下端口不会被杀死，系统关键端口 135/445/3389 始终受保护。多个端口用逗号分隔，如 80,443,3306"
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "key": "output",
-    "label": "输出",
-    "groups": [
+      },
       {
         "label": "日志面板",
         "settings": [
@@ -55,6 +37,65 @@
             "max": 50000,
             "step": 500,
             "description": "超过此行数后自动删除旧行，防止卡顿"
+          }
+        ]
+      },
+      {
+        "label": "底部面板",
+        "settings": [
+          {
+            "key": "bottom_panel.height",
+            "label": "面板高度",
+            "type": "spinbox",
+            "default": 200,
+            "min": 80,
+            "max": 800,
+            "step": 10,
+            "suffix": " 像素",
+            "description": "底部输出/通知/任务面板的默认高度，可拖动边框调整"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "key": "process",
+    "label": "进程",
+    "groups": [
+      {
+        "label": "端口保护",
+        "settings": [
+          {
+            "key": "protected_ports",
+            "label": "保护端口列表",
+            "type": "text",
+            "default": "",
+            "description": "以下端口不会被杀死，系统关键端口 135/445/3389 始终受保护。多个端口用逗号分隔，如 80,443,3306"
+          }
+        ]
+      },
+      {
+        "label": "后台任务",
+        "settings": [
+          {
+            "key": "tasks.max_concurrency",
+            "label": "最大并行任务数",
+            "type": "spinbox",
+            "default": 5,
+            "min": 1,
+            "max": 20,
+            "step": 1,
+            "description": "后台任务最大同时执行数量，增大可提高吞吐但增加系统负载"
+          },
+          {
+            "key": "tasks.max_count",
+            "label": "最大历史任务数",
+            "type": "spinbox",
+            "default": 50,
+            "min": 10,
+            "max": 500,
+            "step": 10,
+            "description": "超出上限后自动删除已完成/失败的历史任务，避免堆积"
           }
         ]
       }
@@ -136,42 +177,119 @@
     ]
   },
   {
+    "key": "vcs",
+    "label": "版本控制",
+    "groups": [
+      {
+        "label": "SVN",
+        "settings": [
+          {
+            "key": "svn.path",
+            "label": "SVN 可执行文件路径",
+            "type": "text",
+            "default": "svn",
+            "description": "svn.exe 的完整路径，留空或填 svn 表示使用系统 PATH 中的 svn"
+          },
+          {
+            "key": "svn.tortoise_path",
+            "label": "TortoiseSVN 路径",
+            "type": "text",
+            "default": "",
+            "description": "TortoiseProc.exe 的完整路径，留空则自动从 Program Files 目录查找"
+          }
+        ]
+      },
+      {
+        "label": "远程更新检查",
+        "settings": [
+          {
+            "key": "scheduled_checks.remote_enabled",
+            "label": "启用远程检查",
+            "type": "checkbox",
+            "default": false,
+            "description": "开启后按下方间隔定时检查仓库是否有新提交"
+          },
+          {
+            "key": "scheduled_checks.remote_interval_minutes",
+            "label": "检查间隔",
+            "type": "spinbox",
+            "default": 30,
+            "min": 5,
+            "max": 480,
+            "suffix": " 分钟",
+            "depends_on": "scheduled_checks.remote_enabled",
+            "description": "两次远程检查之间的等待时间"
+          }
+        ]
+      },
+      {
+        "label": "本地未提交检查",
+        "settings": [
+          {
+            "key": "scheduled_checks.local_enabled",
+            "label": "启用本地检查",
+            "type": "checkbox",
+            "default": false,
+            "description": "开启后按下方间隔定时检查项目目录是否有未提交的本地变更"
+          },
+          {
+            "key": "scheduled_checks.local_interval_minutes",
+            "label": "检查间隔",
+            "type": "spinbox",
+            "default": 15,
+            "min": 5,
+            "max": 480,
+            "suffix": " 分钟",
+            "depends_on": "scheduled_checks.local_enabled",
+            "description": "两次本地检查之间的等待时间"
+          }
+        ]
+      }
+    ]
+  },
+  {
     "key": "terminal",
     "label": "终端",
     "groups": [
       {
-        "label": "Shell 配置",
+        "label": "终端命令列表",
         "settings": [
           {
-            "key": "terminal.shell",
-            "label": "默认 Shell",
-            "type": "combo",
-            "default": "cmd",
-            "options": [
-              { "label": "CMD (命令提示符)", "value": "cmd" },
-              { "label": "PowerShell 5", "value": "powershell" },
-              { "label": "PowerShell 7 (Core)", "value": "pwsh" },
-              { "label": "自定义...", "value": "custom" }
-            ],
-            "description": "底部终端面板使用的 Shell 程序"
-          },
+            "key": "terminal.entries",
+            "label": "终端命令配置",
+            "type": "entries",
+            "default": "[{\"name\":\"Git Bash\",\"path\":\"C:\\\\Program Files\\\\Git\\\\git-bash.exe\",\"args\":\"--cd={path}\",\"init\":\"\"}]",
+            "description": "右键菜单终端命令列表，JSON 数组格式。每项包含 name(显示名称) path(程序路径) args(启动参数,{path}替换为项目路径) init(进入目录后执行命令)。示例：[{\"name\":\"Git Bash\",\"path\":\"C:\\\\Program Files\\\\Git\\\\git-bash.exe\",\"args\":\"--cd={path}\",\"init\":\"\"},{\"name\":\"CMD\",\"path\":\"cmd.exe\",\"args\":\"/k\",\"init\":\"cd /d {path}\\nclaude --permission-mode auto\"}]"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "key": "external_programs",
+    "label": "外部程序",
+    "groups": [
+      {
+        "label": "配置文件优先级",
+        "settings": [
           {
-            "key": "terminal.shell_path",
-            "label": "自定义路径",
-            "type": "text",
-            "default": "",
-            "placeholder": "如 C:\\Program Files\\Git\\bin\\bash.exe",
-            "depends_on": "terminal.shell",
-            "depends_value": "custom",
-            "description": "选择「自定义」时生效，填写可执行文件的完整路径"
-          },
+            "key": "buildtool.config_priority",
+            "label": "配置文件优先级",
+            "type": "priority",
+            "default": "{}",
+            "description": "自定义右键菜单「打开配置文件」时各构建工具配置文件的查找顺序，排在前面的优先打开"
+          }
+        ]
+      },
+      {
+        "label": "外部程序列表",
+        "settings": [
           {
-            "key": "terminal.work_dir",
-            "label": "工作目录",
-            "type": "text",
-            "default": "",
-            "placeholder": "留空=当前目录，支持 {project_root} 等变量",
-            "description": "终端启动时的初始目录，留空使用程序当前目录"
+            "key": "openers",
+            "label": "外部程序配置",
+            "type": "entries",
+            "default": "[{\"name\":\"VS Code\",\"path\":\"code.cmd\",\"args\":\"--new-window {path}\"}]",
+            "description": "右键菜单「通过软件打开」和「打开配置文件」子菜单列表。每项包含 name(显示名称) path(程序路径) args(启动参数,{path}替换为项目目录、{file}替换为配置文件路径)。示例：[{\"name\":\"VS Code\",\"path\":\"code.cmd\",\"args\":\"--new-window {path}\"},{\"name\":\"记事本\",\"path\":\"notepad.exe\",\"args\":\"{file}\"}]"
           }
         ]
       }
@@ -190,9 +308,18 @@
             "type": "combo",
             "default": "每次启动",
             "options": [
-              { "label": "每次启动", "value": "每次启动" },
-              { "label": "按频率", "value": "频率" },
-              { "label": "手动检查", "value": "手动检查" }
+              {
+                "label": "每次启动",
+                "value": "每次启动"
+              },
+              {
+                "label": "按频率",
+                "value": "频率"
+              },
+              {
+                "label": "手动检查",
+                "value": "手动检查"
+              }
             ],
             "description": "选择何时自动检查更新，手动检查需点击帮助菜单中的检查更新"
           },
@@ -202,11 +329,26 @@
             "type": "combo",
             "default": "每天",
             "options": [
-              { "label": "每天", "value": "每天" },
-              { "label": "每三天", "value": "每三天" },
-              { "label": "每周", "value": "每周" },
-              { "label": "每月", "value": "每月" },
-              { "label": "自定义", "value": "自定义" }
+              {
+                "label": "每天",
+                "value": "每天"
+              },
+              {
+                "label": "每三天",
+                "value": "每三天"
+              },
+              {
+                "label": "每周",
+                "value": "每周"
+              },
+              {
+                "label": "每月",
+                "value": "每月"
+              },
+              {
+                "label": "自定义",
+                "value": "自定义"
+              }
             ],
             "depends_on": "update.type",
             "depends_value": "频率",
@@ -236,58 +378,6 @@
             "type": "text",
             "default": "http://11.1.1.179:8099",
             "description": "局域网更新服务器的地址"
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "key": "scheduled_checks",
-    "label": "定时检查",
-    "groups": [
-      {
-        "label": "远程更新检查",
-        "settings": [
-          {
-            "key": "scheduled_checks.remote_enabled",
-            "label": "启用",
-            "type": "checkbox",
-            "default": false,
-            "description": "开启后按下方间隔定时检查仓库是否有新提交"
-          },
-          {
-            "key": "scheduled_checks.remote_interval_minutes",
-            "label": "检查间隔",
-            "type": "spinbox",
-            "default": 30,
-            "min": 5,
-            "max": 480,
-            "suffix": " 分钟",
-            "depends_on": "scheduled_checks.remote_enabled",
-            "description": "两次远程检查之间的等待时间"
-          }
-        ]
-      },
-      {
-        "label": "本地未提交检查",
-        "settings": [
-          {
-            "key": "scheduled_checks.local_enabled",
-            "label": "启用",
-            "type": "checkbox",
-            "default": false,
-            "description": "开启后按下方间隔定时检查项目目录是否有未提交的本地变更"
-          },
-          {
-            "key": "scheduled_checks.local_interval_minutes",
-            "label": "检查间隔",
-            "type": "spinbox",
-            "default": 15,
-            "min": 5,
-            "max": 480,
-            "suffix": " 分钟",
-            "depends_on": "scheduled_checks.local_enabled",
-            "description": "两次本地检查之间的等待时间"
           }
         ]
       }

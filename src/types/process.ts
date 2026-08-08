@@ -1,13 +1,13 @@
-/** 子进程句柄（PID、端口等） */
-export interface ProcessHandle {
-  pid: number
-  name: string
-  path: string
-  port: number | null
-  command?: string
-}
+/*
+ * @Author: zhengrenfu
+ * @Date: 2026-07-14
+ * @LastEditors: zhengrenfu
+ * @LastEditTime: 2026-08-03
+ * @FilePath: \src\types\process.ts
+ * @Description: 子进程与任务运行相关类型
+ */
 
-/** 项目运行状态，主进程定期推送 */
+/** Running status pushed by main process periodically */
 export interface RunningInfo {
   index: number
   name: string
@@ -15,13 +15,7 @@ export interface RunningInfo {
   port: number | null
 }
 
-/** 项目关联的脚本任务 */
-export interface ScriptTask {
-  command: string
-  handle?: ProcessHandle
-}
-
-/** 项目迁移参数（换仓库或复制目录） */
+/** Migration params (switch repo or copy directory) */
 export interface MigrationParams {
   mode: 'svn' | 'git' | 'copy'
   targetDir: string

@@ -1,0 +1,123 @@
+/**
+ * Maven 多模块解析
+ * 从 pom.xml 递归解析子模块，返回可运行的 Spring Boot 模块列表
+ */
+import { existsSync, readFileSync } from 'fs'
+import { join, dirname } from 'path'
+
+export interface RunnableModule {
+  name: string
+  modulePath: string
+  framework: 'spring-boot' | 'tomcat' | null
+}
+
+/** 检测子模块 pom 是否包含 spring-boot-maven-plugin */
+function hasSpringBootPlugin(pomPath: string): boolean {
+  try {
+    const content = readFileSync(pomPath, 'utf-8')
+    return /spring-boot-maven-plugin/.test(content)
+  } catch {
+    return false
+  }
+}
+
+/** 解析 <modules> 子模块列表 */
+function parseModules(pomPath: string): string[] {
+  try {
+    const content = readFileSync(pomPath, 'utf-8')
+    const re = /<module>([^<]+)<\/module>/g
+    const modules: string[] = []
+    let m: RegExpExecArray | null
+    while ((m = re.exec(content)) !== null) {
+      modules.push(m[1].trim())
+    }
+    return modules
+  } catch {
+    return []
+  }
+}
+
+/** 解析 artifactId */
+function parseArtifactId(pomPath: string): string {
+  try {
+    const content = readFileSync(pomPath, 'utf-8')
+    const m = /<artifactId>([^<]+)<\/artifactId>/.exec(content)
+    return m ? m[1].trim() : ''
+  } catch {
+    return ''
+  }
+}
+
+/** 检查是否为聚合 POM */
+function isAggregatorPom(pomPath: string): boolean {
+  try {
+    const content = readFileSync(pomPath, 'utf-8')
+    return /<packaging>\s*pom\s*<\/packaging>/.test(content) && /<modules>/.test(content)
+  } catch {
+    return false
+  }
+}
+
+/**
+ * 从根 pom.xml 递归检测可运行的子模块
+ * @param rootPath Maven 项目根目录
+ * @returns 可运行的 Spring Boot 子模块列表（无则空数组）
+ */
+export function detectRunnableModules(rootPath: string): RunnableModule[] {
+  const rootPom = join(rootPath, 'pom.xml')
+  if (!existsSync(rootPom)) return []
+
+  // 单模块项目：根 pom 直接有 spring-boot-maven-plugin
+  if (!isAggregatorPom(rootPom)) {
+    if (hasSpringBootPlugin(rootPom)) {
+      return [
+        {
+          name: parseArtifactId(rootPom) || 'main',
+          modulePath: '.',
+          framework: 'spring-boot',
+        },
+      ]
+    }
+    return []
+  }
+
+  // 多模块项目：递归遍历 <modules>
+  const result: RunnableModule[] = []
+  const visited = new Set<string>()
+
+  function walk(pomPath: string, modulePath: string) {
+    const absPath = join(rootPath, pomPath)
+    if (visited.has(absPath)) return
+    visited.add(absPath)
+
+    if (!existsSync(absPath)) return
+
+    const children = parseModules(absPath)
+
+    if (hasSpringBootPlugin(absPath)) {
+      result.push({
+        name: parseArtifactId(absPath),
+        modulePath: modulePath || '.',
+        framework: 'spring-boot',
+      })
+    }
+
+    for (const child of children) {
+      walk(join(dirname(pomPath), child, 'pom.xml'), join(modulePath, child).replace(/^\.\//, ''))
+    }
+  }
+
+  const topModules = parseModules(rootPom)
+  for (const mod of topModules) {
+    walk(join(mod, 'pom.xml'), mod)
+  }
+
+  // 去重
+  const seen = new Set<string>()
+  return result.filter((m) => {
+    const key = m.modulePath
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
+}
