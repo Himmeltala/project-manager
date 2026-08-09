@@ -146,7 +146,7 @@ export class ProjectService extends EventEmitter {
   private processMgr: ProcessManager
   private vcsRegistry: VcsRegistryImpl
   projects: Project[] = []
-  private running: Map<number, ManagedProcess> = new Map()
+  private running: Map<number, ManagedProcess[]> = new Map()
   private allRunning: Map<string, ManagedProcess> = new Map()
 
   constructor(processMgr: ProcessManager, vcsRegistry: VcsRegistryImpl) {
@@ -165,7 +165,7 @@ export class ProjectService extends EventEmitter {
     for (let newIdx = 0; newIdx < this.projects.length; newIdx++) {
       const proj = this.projects[newIdx]
       if (this.allRunning.has(proj.path)) {
-        this.running.set(newIdx + 1, this.allRunning.get(proj.path)!)
+        this.running.set(newIdx + 1, [this.allRunning.get(proj.path)!])
       }
     }
   }
@@ -195,7 +195,7 @@ export class ProjectService extends EventEmitter {
   }
 
   isRunning(idx: number): boolean {
-    return this.running.has(idx)
+    return (this.running.get(idx)?.length ?? 0) > 0
   }
 
   getRunningInfo(): RunningInfo[] {
@@ -244,6 +244,7 @@ export class ProjectService extends EventEmitter {
   async start(idx: number, command?: string, report?: (msg: string, pct?: number) => void): Promise<boolean> {
     const proj = this.getProjectByIndex(idx)
     if (!proj) return false
+    console.log('[DEBUG start]', idx, proj.name, command)
     /* allow multi-module re-start with different command */
     if (!existsSync(proj.path)) return false
 
@@ -310,14 +311,24 @@ export class ProjectService extends EventEmitter {
     const extraEnv = this.makeBuildEnv(proj)
     const mp = this.processMgr.spawnProc(cmd, proj.path, extraEnv)
     mp.name = proj.name
+    mp.command = cmd
+    console.log('[DEBUG startByProject] mp.name:', mp.name, 'cmd:', cmd)
+    if (command) {
+      const m = /-pl\s+(\S+)/.exec(command)
+      if (m) mp.name = proj.name + " → " + (m[1].split("/").pop() || m[1])
+    }
 
-    this.running.set(idx, mp)
+    const existing = this.running.get(idx) || []
+    existing.push(mp)
+    this.running.set(idx, existing)
+    this.processMgr.addProjectTask(proj.path, mp)
     this.allRunning.set(proj.path, mp)
 
+    console.log('[DEBUG output] starting outputThread for:', mp.name, 'pid:', mp.proc.pid, 'stdout:', !!mp.proc.stdout, 'stderr:', !!mp.proc.stderr)
     this.processMgr.startOutputThread(
       mp,
       (line) => {
-        this.emit('outputLine', { index: idx, name: proj.name, line })
+        this.emit('outputLine', { index: idx, name: mp.name, line })
       },
       (port) => {
         mp.port = port
@@ -326,16 +337,20 @@ export class ProjectService extends EventEmitter {
     )
 
     mp.proc.on('exit', () => {
-      if (this.running.get(idx) === mp) {
-        this.running.delete(idx)
+      const arr = this.running.get(idx)
+      if (arr) {
+        const filtered = arr.filter((m: any) => m !== mp)
+        if (filtered.length === 0) this.running.delete(idx)
+        else this.running.set(idx, filtered)
       }
       if (this.allRunning.get(proj.path) === mp) {
         this.allRunning.delete(proj.path)
       }
-      this.emit('projectStopped', { index: idx, name: proj.name })
+      this.processMgr.removeProjectTask(proj.path, mp)
+      this.emit('projectStopped', { index: idx, name: mp.name })
     })
 
-    this.emit('projectStarted', { index: idx, name: proj.name })
+    this.emit('projectStarted', { index: idx, name: mp.name })
     return true
   }
 
@@ -349,22 +364,21 @@ export class ProjectService extends EventEmitter {
     const buildMp = this.processMgr.spawnProc(buildCmd, proj.path, extraEnv)
     buildMp.name = `${proj.name} (构建)`
 
-    this.running.set(idx, buildMp)
+    this.running.set(idx, [buildMp])
     this.allRunning.set(proj.path, buildMp)
 
     this.processMgr.startOutputThread(
       buildMp,
-      (line) => this.emit('outputLine', { index: idx, name: proj.name, line }),
+      (line) => this.emit('outputLine', { index: idx, name: mp.name, line }),
       () => {},
     )
 
     return new Promise((resolve) => {
       buildMp.proc.on('exit', (code) => {
-        this.running.delete(idx)
         this.allRunning.delete(proj.path)
 
         if (code !== 0) {
-          this.emit('projectStopped', { index: idx, name: proj.name })
+          this.emit('projectStopped', { index: idx, name: mp.name })
           resolve(false)
           return
         }
@@ -376,7 +390,7 @@ export class ProjectService extends EventEmitter {
         const destWar = join(tomcatWebapps, `${warName}.war`)
 
         if (!existsSync(warFile)) {
-          this.emit('projectStopped', { index: idx, name: proj.name })
+          this.emit('projectStopped', { index: idx, name: mp.name })
           resolve(false)
           return
         }
@@ -384,14 +398,14 @@ export class ProjectService extends EventEmitter {
         try {
           copyFileSync(warFile, destWar)
         } catch {
-          this.emit('projectStopped', { index: idx, name: proj.name })
+          this.emit('projectStopped', { index: idx, name: mp.name })
           resolve(false)
           return
         }
 
         const catalina = join(proj.tomcatHome, 'bin', 'catalina.bat')
         if (!existsSync(catalina)) {
-          this.emit('projectStopped', { index: idx, name: proj.name })
+          this.emit('projectStopped', { index: idx, name: mp.name })
           resolve(false)
           return
         }
@@ -400,12 +414,12 @@ export class ProjectService extends EventEmitter {
         const tomcatMp = this.processMgr.spawnProc(tomcatCmd, proj.path, extraEnv)
         tomcatMp.name = proj.name
 
-        this.running.set(idx, tomcatMp)
+        this.running.set(idx, [tomcatMp])
         this.allRunning.set(proj.path, tomcatMp)
 
         this.processMgr.startOutputThread(
           tomcatMp,
-          (line) => this.emit('outputLine', { index: idx, name: proj.name, line }),
+          (line) => this.emit('outputLine', { index: idx, name: mp.name, line }),
           (port) => {
             tomcatMp.port = port
             this.emit('portDetected', { index: idx, port })
@@ -413,36 +427,35 @@ export class ProjectService extends EventEmitter {
         )
 
         tomcatMp.proc.on('exit', () => {
-          if (this.running.get(idx) === tomcatMp) this.running.delete(idx)
           if (this.allRunning.get(proj.path) === tomcatMp) this.allRunning.delete(proj.path)
-          this.emit('projectStopped', { index: idx, name: proj.name })
+          this.emit('projectStopped', { index: idx, name: mp.name })
         })
 
-        this.emit('projectStarted', { index: idx, name: proj.name })
+        this.emit('projectStarted', { index: idx, name: mp.name })
         resolve(true)
       })
     })
   }
 
   async stop(idx: number): Promise<boolean> {
-    const mp = this.running.get(idx)
-    if (!mp) return false
+    const mps = this.running.get(idx)
+    if (!mps || mps.length === 0) return false
 
     const proj = this.getProjectByIndex(idx)
-    const name = mp.name
-    const path = proj?.path || mp.path
-    const port = mp.port
-
     // 立即从运行列表移除，UI 即时反映停止状态
     this.running.delete(idx)
-    if (this.allRunning.get(path) === mp) this.allRunning.delete(path)
+    for (const mp of mps) {
+      const name = mp.name
+      const path = proj?.path || mp.path
+      const port = mp.port
+      if (this.allRunning.get(path) === mp) this.allRunning.delete(path)
 
-    // 停止该项目的脚本任务
-    const tasks = this.processMgr.getProjectTasks(path)
-    for (const t of tasks) {
-      this.processMgr.terminate(t)
-    }
-    this.processMgr.cleanProjectTasks(path)
+      // 停止该项目的脚本任务
+      const tasks = this.processMgr.getProjectTasks(path)
+      for (const t of tasks) {
+        this.processMgr.terminate(t)
+      }
+      this.processMgr.cleanProjectTasks(path)
 
     // 后台终止主进程，完成后释放端口并发送事件
     this.processMgr.terminate(mp, () => {
@@ -458,6 +471,7 @@ export class ProjectService extends EventEmitter {
   async stopScript(idx: number, command: string): Promise<boolean> {
     const proj = this.getProjectByIndex(idx)
     if (!proj) return false
+    console.log('[DEBUG start]', idx, proj.name, command)
 
     const tasks = this.processMgr.getProjectTasks(proj.path)
     const target = tasks.find((t) => t.command === command)
@@ -663,6 +677,7 @@ export class ProjectService extends EventEmitter {
   async cleanDependencies(idx: number): Promise<boolean> {
     const proj = this.getProjectByIndex(idx)
     if (!proj) return false
+    console.log('[DEBUG start]', idx, proj.name, command)
 
     const profile =
       projectTypeRegistry.get(proj.projectType)?.getProfile() ?? projectTypeRegistry.get('npm')!.getProfile()
@@ -716,13 +731,17 @@ export class ProjectService extends EventEmitter {
     const extraEnv = this.makeBuildEnv(proj)
     const mp = this.processMgr.spawnProc(command, proj.path, extraEnv)
     mp.name = proj.name
+    if (command) {
+      const m = /-pl\s+(\S+)/.exec(command)
+      if (m) mp.name = proj.name + " → " + (m[1].split("/").pop() || m[1])
+    }
     mp.command = command
 
     this.processMgr.addProjectTask(proj.path, mp)
 
     this.processMgr.startOutputThread(
       mp,
-      (line) => this.emit('outputLine', { index: idx, name: proj.name, line }),
+      (line) => this.emit('outputLine', { index: idx, name: mp.name, line }),
       () => {},
     )
 
@@ -741,10 +760,14 @@ export class ProjectService extends EventEmitter {
     const extraEnv = this.makeBuildEnv(proj)
     const mp = this.processMgr.spawnProc(command, proj.path, extraEnv)
     mp.name = proj.name
+    if (command) {
+      const m = /-pl\s+(\S+)/.exec(command)
+      if (m) mp.name = proj.name + " → " + (m[1].split("/").pop() || m[1])
+    }
 
     this.processMgr.startOutputThread(
       mp,
-      (line) => this.emit('outputLine', { index: idx, name: proj.name, line }),
+      (line) => this.emit('outputLine', { index: idx, name: mp.name, line }),
       () => {},
     )
 
@@ -820,6 +843,7 @@ export class ProjectService extends EventEmitter {
   async migrateProject(idx: number, params: MigrationParams): Promise<boolean> {
     const proj = this.getProjectByIndex(idx)
     if (!proj) return false
+    console.log('[DEBUG start]', idx, proj.name, command)
 
     const { mode, targetDir, svnUrl } = params
 

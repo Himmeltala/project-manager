@@ -68,6 +68,7 @@ let remoteCheckTimer: NodeJS.Timeout | null = null
 let localCheckTimer: NodeJS.Timeout | null = null
 
 function flushOutputBuffer() {
+  console.log('[DEBUG event] flushOutputBuffer, count:', outputBuffer.length)
   if (outputBuffer.length > 0) {
     mainWindow?.webContents.send('event:outputBatch', outputBuffer)
     outputBuffer = []
@@ -245,6 +246,7 @@ function setupMenu(): void {
 function setupEventForwarding(): void {
   if (!projectService || !mainWindow) return
 
+  console.log('[DEBUG event] outputLine received, buffer size:', outputBuffer.length)
   projectService.on('outputLine', (data) => {
     if (outputBuffer.length >= MAX_OUTPUT_BUFFER) {
       droppedOutputCount++
@@ -299,9 +301,12 @@ function registerIpc(): void {
   /** 获取 Maven/Gradle 多模块项目中可运行的子模块列表 */
   ipcMain.handle('project:getRunnableModules', (_e, idx: number) => {
     const proj = projectService.getProjectByIndex(idx)
+    console.log('[DEBUG getRunnableModules] idx:', idx, 'proj:', proj?.name, 'type:', proj?.projectType, 'path:', proj?.path)
     if (!proj) return []
     const provider = projectTypeRegistry.get(proj.projectType)
-    return provider?.detectRunnableModules?.(proj.path) ?? []
+    const modules = provider?.detectRunnableModules?.(proj.path) ?? []
+    console.log('[DEBUG getRunnableModules] provider:', provider?.type, 'modules:', JSON.stringify(modules))
+    return modules
   })
 
   // ── source ──

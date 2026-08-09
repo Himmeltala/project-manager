@@ -9,6 +9,7 @@
 import { spawn, execSync, execFileSync, exec, type ChildProcess } from 'child_process'
 import { basename } from 'path'
 import { EventEmitter } from 'events'
+import * as iconv from 'iconv-lite'
 
 export interface PortProcessInfo {
   pid: number
@@ -59,8 +60,7 @@ export class ProcessManager extends EventEmitter {
   }
 
   startOutputThread(mp: ManagedProcess, onLine: (line: string) => void, onPort: (port: number) => void): void {
-    // 首行探测后锁定编码，避免每行重复探测；系统编码为类级别缓存
-    let detectedEncoding: string | null = null
+    console.log('[DEBUG outputThread] START pid:', mp.proc.pid, 'name:', mp.name)
     const systemEncoding = ProcessManager.getSystemEncoding()
 
     // 逐行读取
@@ -69,6 +69,7 @@ export class ProcessManager extends EventEmitter {
       let leftover = Buffer.alloc(0)
 
       stream.on('data', (chunk: Buffer) => {
+        console.log('[DEBUG outputThread] data chunk len:', chunk.length, 'pid:', mp.proc.pid)
         leftover = Buffer.concat([leftover, chunk])
         while (true) {
           const nlIndex = leftover.indexOf(10) // \n
@@ -83,19 +84,8 @@ export class ProcessManager extends EventEmitter {
 
           if (trimmed.length === 0) continue
 
-          // 解码：首行 UTF-8 试探，含替换字符则改用系统编码
-          let line: string
-          if (detectedEncoding !== null) {
-            line = trimmed.toString(detectedEncoding as BufferEncoding)
-          } else {
-            line = trimmed.toString('utf-8')
-            if (line.includes('�')) {
-              line = trimmed.toString(systemEncoding as BufferEncoding)
-              detectedEncoding = systemEncoding
-            } else {
-              detectedEncoding = 'utf-8'
-            }
-          }
+          // 解码：直接用系统检测到的编码（chcp 936→GBK, 65001→UTF-8）
+          const line = iconv.decode(trimmed, systemEncoding)
 
           // 去掉 ANSI 转义序列
           const cleanLine = line
@@ -120,9 +110,7 @@ export class ProcessManager extends EventEmitter {
       stream.on('end', () => {
         // 处理最后一行
         if (leftover.length > 0) {
-          const tail = detectedEncoding
-            ? leftover.toString(detectedEncoding as BufferEncoding)
-            : leftover.toString('utf-8')
+          const tail = iconv.decode(leftover, systemEncoding)
           const clean = tail.replace(/\x1b\[[0-9;]*[A-Za-z]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, '')
           if (clean && !/terminate batch job/i.test(clean)) onLine(clean)
         }

@@ -58,6 +58,7 @@ import SourceManageDialog from './modals/project/SourceManageModal.vue'
 import VcsRangeDialog from './modals/version-control/VcsRangeModal.vue'
 import SettingsModal from './modals/settings/SettingsModal.vue'
 import StartModuleDialog from './modals/project-type/StartModuleModal.vue'
+import SubmodulePortDialog from './modals/project-type/SubmodulePortModal.vue'
 import DataDirDialog from './modals/system/DataDirModal.vue'
 import TaskDetailDialog from './modals/task/TaskDetailModal.vue'
 import ProxyModal from './modals/project-type/ProxyModal.vue'
@@ -88,6 +89,7 @@ const taskDetailModal = useModal({ component: TaskDetailDialog })
 const proxyModal = useModal({ component: ProxyModal })
 const portModal = useModal({ component: PortModal })
 const startModuleModal = useModal({ component: StartModuleDialog })
+const submodulePortModal = useModal({ component: SubmodulePortDialog })
 const selectorModal = useModal({ component: HomeSelectorDialog })
 
 // 操作目标上下文（在 open 和 confirm 回调之间传递）
@@ -301,6 +303,19 @@ async function handleStop(idx: number) {
     await window.electronAPI.invoke('process:stop', idx)
   }
   await store.refreshRunningInfo()
+}
+
+function handleViewPorts(idx: number) {
+  const proj = getProjectByIdx(idx)
+  if (!proj) return
+  const portList = store.runningInfo
+    .filter((r) => r.index === idx && r.port != null)
+    .map((r) => ({ name: r.name, port: r.port!, modulePath: r.modulePath }))
+  if (portList.length === 0) {
+    window.electronAPI.invoke('system:log', 'info', `端口详情 [${proj.name}] — 无运行中的进程`)
+    return
+  }
+  submodulePortModal.open({ projectName: proj.name, portList })
 }
 
 function handleOpenFolder(path: string) {
@@ -616,6 +631,7 @@ const rowActionHandlers: Record<string, (idx: number) => void> = {
   vcsCheck: handleVcsCheck,
   rename: handleRename,
   remove: handleRemove,
+  viewPorts: handleViewPorts,
   delete: handleDelete,
   migrate: handleMigrate,
   proxy: handleProxy,

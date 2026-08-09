@@ -128,6 +128,7 @@ onMounted(async () => {
   // 批量（主进程 50ms 窗口合并发送）
   cleanups.push(
     window.electronAPI.on('event:outputBatch', (batch) => {
+        console.log('[DEBUG panel] outputBatch received, lines:', batch.length)
       for (const data of batch) {
         collectLine(formatLine(data))
       }

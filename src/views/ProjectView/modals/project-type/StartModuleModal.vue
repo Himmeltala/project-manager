@@ -23,51 +23,27 @@
           display: flex;
           align-items: center;
           gap: 8px;
-          margin-bottom: 10px;
-          padding: 8px 10px;
+          margin-bottom: 8px;
+          padding: 6px 8px;
           border: 1px solid var(--el-border-color-light);
           border-radius: 6px;
         "
       >
-        <el-checkbox :value="mod.modulePath" :disabled="isRunning(mod)" style="margin-right: 0" />
-        <div style="flex: 1; min-width: 0">
-          <div style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">
-            {{ mod.name }}
-          </div>
-          <div
-            style="
-              font-size: 12px;
-              color: var(--el-text-color-secondary);
-              white-space: nowrap;
-              overflow: hidden;
-              text-overflow: ellipsis;
-            "
-          >
-            {{ mod.modulePath }}
-          </div>
+        <div style="flex: 1; min-width: 0; overflow: hidden">
+          <el-checkbox :value="mod.modulePath" :disabled="isRunning(mod)">
+            <span style="font-weight: 600; white-space: nowrap">{{ mod.name }}</span>
+          </el-checkbox>
+          <div style="font-size: 12px; color: var(--el-text-color-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-left: 24px">{{ mod.modulePath }}</div>
         </div>
-        <el-tag v-if="mod.framework" size="small" type="success">
-          {{ mod.framework === 'spring-boot' ? 'SB' : 'TC' }}
-        </el-tag>
-        <el-tag v-if="isRunning(mod)" size="small" type="warning">运行中</el-tag>
-        <el-button v-if="isRunning(mod)" size="small" type="danger" plain @click.stop="stopModule(mod)">停止</el-button>
+        <el-tag v-if="mod.framework" size="small" type="success" style="flex-shrink: 0">{{ mod.framework === 'spring-boot' ? 'SB' : 'TC' }}</el-tag>
+        <el-tag v-if="isRunning(mod)" size="small" type="warning" style="flex-shrink: 0">运行中</el-tag>
+        <el-button v-if="isRunning(mod)" size="small" type="danger" plain @click.stop="stopModule(mod)" style="flex-shrink: 0">停止</el-button>
       </div>
     </el-checkbox-group>
 
     <template #footer>
-      <el-button
-        v-if="mode === 'stop'"
-        plain
-        size="small"
-        type="danger"
-        :disabled="runningModules.length === 0"
-        @click="stopAll"
-      >
-        全部停止
-      </el-button>
-      <el-button v-else plain size="small" type="primary" :disabled="selected.length === 0" @click="confirm"
-        >启动</el-button
-      >
+      <el-button v-if="mode === 'stop'" plain size="small" type="danger" :disabled="runningModules.length === 0" @click="stopAll">全部停止</el-button>
+      <el-button v-else plain size="small" type="primary" :disabled="selected.length === 0" @click="confirm">启动</el-button>
       <el-button plain size="small" @click="emit('close')">取消</el-button>
     </template>
   </el-dialog>
