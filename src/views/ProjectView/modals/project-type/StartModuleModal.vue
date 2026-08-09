@@ -3,8 +3,8 @@
  * @Date: 2026-08-09
  * @LastEditors: zhengrenfu
  * @LastEditTime: 2026-08-09
- * @FilePath: \src\views\ProjectView\modals\StartModuleModal.vue
- * @Description: 选择启动模块对话框（Maven/Gradle 多模块项目）
+ * @FilePath: \src\views\ProjectView\modals\project-type\StartModuleModal.vue
+ * @Description: 选择启动模块对话框（Maven/Gradle 多模块项目，支持多选）
 -->
 <template>
   <el-dialog
@@ -15,8 +15,8 @@
     top="2vh"
     :close-on-click-modal="false"
   >
-    <el-radio-group v-model="selected" style="width: 100%">
-      <el-radio
+    <el-checkbox-group v-model="selected" style="width: 100%">
+      <el-checkbox
         v-for="mod in modules"
         :key="mod.modulePath"
         :value="mod.modulePath"
@@ -36,11 +36,11 @@
             mod.framework === 'spring-boot' ? 'Spring Boot' : 'Tomcat'
           }}</el-tag>
         </div>
-      </el-radio>
-    </el-radio-group>
+      </el-checkbox>
+    </el-checkbox-group>
 
     <template #footer>
-      <el-button plain size="small" type="primary" :disabled="!selected" @click="confirm">启动</el-button>
+      <el-button plain size="small" type="primary" :disabled="selected.length === 0" @click="confirm">启动</el-button>
       <el-button plain size="small" @click="emit('close')">取消</el-button>
     </template>
   </el-dialog>
@@ -63,26 +63,26 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'close'): void
-  (e: 'confirm', module: RunnableModule): void
+  (e: 'confirm', modules: RunnableModule[]): void
 }>()
 
-const selected = ref('')
+const selected = ref<string[]>([])
 
 watch(
   () => props.visible,
   (v) => {
     if (v && props.modules.length > 0) {
-      selected.value = props.modules[0].modulePath
+      selected.value = [props.modules[0].modulePath]
     } else {
-      selected.value = ''
+      selected.value = []
     }
   },
 )
 
 function confirm() {
-  const mod = props.modules.find((m) => m.modulePath === selected.value)
-  if (mod) {
-    emit('confirm', mod)
+  const mods = props.modules.filter((m) => selected.value.includes(m.modulePath))
+  if (mods.length > 0) {
+    emit('confirm', mods)
   }
 }
 </script>
