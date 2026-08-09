@@ -10,14 +10,14 @@
   <el-dialog
     :model-value="visible"
     @update:model-value="emit('close')"
-    :title="`选择启动模块: ${projectName}`"
+    :title="`${mode === 'stop' ? '停止模块' : '选择启动模块'}: ${projectName}`"
     width="520"
     top="2vh"
     :close-on-click-modal="false"
   >
     <el-checkbox-group v-model="selected">
       <div
-        v-for="mod in modules"
+        v-for="mod in displayModules"
         :key="mod.modulePath"
         style="
           display: flex;
@@ -55,14 +55,26 @@
     </el-checkbox-group>
 
     <template #footer>
-      <el-button plain size="small" type="primary" :disabled="selected.length === 0" @click="confirm">启动</el-button>
+      <el-button
+        v-if="mode === 'stop'"
+        plain
+        size="small"
+        type="danger"
+        :disabled="runningModules.length === 0"
+        @click="stopAll"
+      >
+        全部停止
+      </el-button>
+      <el-button v-else plain size="small" type="primary" :disabled="selected.length === 0" @click="confirm"
+        >启动</el-button
+      >
       <el-button plain size="small" @click="emit('close')">取消</el-button>
     </template>
   </el-dialog>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 
 interface RunnableModule {
   name: string
@@ -75,15 +87,26 @@ const props = defineProps<{
   projectName: string
   modules: RunnableModule[]
   runningCommands?: string[]
+  mode?: 'start' | 'stop'
 }>()
 
 const emit = defineEmits<{
   (e: 'close'): void
   (e: 'confirm', modules: RunnableModule[]): void
   (e: 'stop', module: RunnableModule): void
+  (e: 'stopAll'): void
 }>()
 
 const selected = ref<string[]>([])
+
+const runningModules = computed(() => props.modules.filter((m) => isRunning(m)))
+
+const displayModules = computed(() => {
+  if (props.mode === 'stop') {
+    return runningModules.value.length > 0 ? runningModules.value : props.modules
+  }
+  return props.modules
+})
 
 function isRunning(mod: RunnableModule): boolean {
   if (!props.runningCommands) return false
@@ -92,6 +115,10 @@ function isRunning(mod: RunnableModule): boolean {
 
 function stopModule(mod: RunnableModule) {
   emit('stop', mod)
+}
+
+function stopAll() {
+  emit('stopAll')
 }
 
 watch(
