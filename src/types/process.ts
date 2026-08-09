@@ -13,6 +13,7 @@ export interface RunningInfo {
   name: string
   path: string
   port: number | null
+  modulePath?: string
 }
 
 /** Migration params (switch repo or copy directory) */

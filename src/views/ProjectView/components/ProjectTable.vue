@@ -61,9 +61,32 @@
           <span :class="row.scriptCount > 0 ? 'script-running' : 'script-idle'">{{ row.scriptText }}</span>
         </template>
       </el-table-column>
-      <el-table-column prop="portText" label="端口" align="center" width="105" sortable :sort-method="sortPort">
+      <el-table-column prop="portText" label="端口" align="center" width="120" sortable :sort-method="sortPort">
         <template #default="{ row }">
-          {{ row.portText }}
+          <template v-if="row.ports.length > 0">
+            <el-tag
+              v-for="(p, pi) in row.ports.slice(0, 2)"
+              :key="pi"
+              size="small"
+              type="success"
+              effect="plain"
+              style="cursor: pointer; margin-right: 2px"
+              @click="emit('action', 'viewPorts', row.origIdx)"
+            >
+              {{ p.port }}
+            </el-tag>
+            <el-tag
+              v-if="row.ports.length > 2"
+              size="small"
+              type="info"
+              effect="plain"
+              style="cursor: pointer"
+              @click="emit('action', 'viewPorts', row.origIdx)"
+            >
+              +{{ row.ports.length - 2 }}
+            </el-tag>
+          </template>
+          <span v-else>-</span>
         </template>
       </el-table-column>
       <el-table-column label="操作" width="230" align="center" fixed="right">
@@ -303,7 +326,10 @@ const displayData = computed(() => {
     const origIdx = p._origIdx ?? i + 1
     const idx = i + 1
     const isRunning = props.allSourcesMode ? p.path in store.runningPaths : runningSet.has(origIdx)
-    const port = store.runningPaths[p.path] ?? runningSet.get(origIdx)?.port ?? 0
+    const ports = store.runningInfo
+      .filter((r) => r.index === origIdx && r.port != null)
+      .map((r) => ({ port: r.port!, name: r.name, modulePath: r.modulePath }))
+    const portText = ports.length > 0 ? ports.map((p) => String(p.port)).join(', ') : '-'
     const scriptCount = scriptsMap[p.path]?.length || 0
     return Object.freeze({
       index: idx,
@@ -317,7 +343,8 @@ const displayData = computed(() => {
       statusText: isRunning ? '● 项目已启动' : '○ 未启动',
       scriptText: scriptCount > 0 ? `${scriptCount} 个脚本运行中` : '-',
       scriptCount,
-      portText: port > 0 ? String(port) : '-',
+      portText,
+      ports,
       color: getColor(p.name),
       project: p,
     })

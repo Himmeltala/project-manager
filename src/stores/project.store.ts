@@ -64,12 +64,14 @@ export const useProjectStore = defineStore('project', () => {
 
   // 刷新项目运行状态与进程信息
   async function refreshRunningInfo() {
-    const [info, paths] = await Promise.all([
+    const [info, paths, scripts] = await Promise.all([
       window.electronAPI.invoke('process:getRunningInfo'),
       window.electronAPI.invoke('process:getAllRunningPaths'),
+      window.electronAPI.invoke('process:getAllRunningScripts'),
     ])
     runningInfo.value = info
     runningPaths.value = paths
+    runningScripts.value = scripts
   }
 
   return {

@@ -37,11 +37,13 @@ function parseModules(pomPath: string): string[] {
   }
 }
 
-/** 解析 artifactId */
+/** 解析 artifactId（跳过 <parent> 块内的） */
 function parseArtifactId(pomPath: string): string {
   try {
     const content = readFileSync(pomPath, 'utf-8')
-    const m = /<artifactId>([^<]+)<\/artifactId>/.exec(content)
+    // 去掉 <parent>...</parent> 块，避免匹配到父级的 artifactId
+    const withoutParent = content.replace(/<parent>[\s\S]*?<\/parent>/g, '')
+    const m = /<artifactId>([^<]+)<\/artifactId>/.exec(withoutParent)
     return m ? m[1].trim() : ''
   } catch {
     return ''

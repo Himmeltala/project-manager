@@ -337,16 +337,17 @@ export class ProjectService extends EventEmitter {
     )
 
     mp.proc.on('exit', () => {
-      const arr = this.running.get(idx)
-      if (arr) {
-        const filtered = arr.filter((m: any) => m !== mp)
-        if (filtered.length === 0) this.running.delete(idx)
-        else this.running.set(idx, filtered)
+      if (this.running.get(idx) === mp) {
+        this.running.delete(idx)
       }
+      if (this.allRunning.get(proj.path) === mp) {
       if (this.allRunning.get(proj.path) === mp) {
         this.allRunning.delete(proj.path)
       }
       this.processMgr.removeProjectTask(proj.path, mp)
+        this.allRunning.delete(proj.path)
+      this.processMgr.removeProjectTask(proj.path, mp)
+      }
       this.emit('projectStopped', { index: idx, name: mp.name })
     })
 
@@ -375,6 +376,7 @@ export class ProjectService extends EventEmitter {
 
     return new Promise((resolve) => {
       buildMp.proc.on('exit', (code) => {
+        this.running.delete(idx)
         this.allRunning.delete(proj.path)
 
         if (code !== 0) {
@@ -427,6 +429,7 @@ export class ProjectService extends EventEmitter {
         )
 
         tomcatMp.proc.on('exit', () => {
+          if (this.running.get(idx) === tomcatMp) this.running.delete(idx)
           if (this.allRunning.get(proj.path) === tomcatMp) this.allRunning.delete(proj.path)
           this.emit('projectStopped', { index: idx, name: mp.name })
         })
@@ -438,24 +441,24 @@ export class ProjectService extends EventEmitter {
   }
 
   async stop(idx: number): Promise<boolean> {
-    const mps = this.running.get(idx)
-    if (!mps || mps.length === 0) return false
+    const mp = this.running.get(idx)
+    if (!mp) return false
 
     const proj = this.getProjectByIndex(idx)
+    const name = mp.name
+    const path = proj?.path || mp.path
+    const port = mp.port
+
     // 立即从运行列表移除，UI 即时反映停止状态
     this.running.delete(idx)
-    for (const mp of mps) {
-      const name = mp.name
-      const path = proj?.path || mp.path
-      const port = mp.port
-      if (this.allRunning.get(path) === mp) this.allRunning.delete(path)
+    if (this.allRunning.get(path) === mp) this.allRunning.delete(path)
 
-      // 停止该项目的脚本任务
-      const tasks = this.processMgr.getProjectTasks(path)
-      for (const t of tasks) {
-        this.processMgr.terminate(t)
-      }
-      this.processMgr.cleanProjectTasks(path)
+    // 停止该项目的脚本任务
+    const tasks = this.processMgr.getProjectTasks(path)
+    for (const t of tasks) {
+      this.processMgr.terminate(t)
+    }
+    this.processMgr.cleanProjectTasks(path)
 
     // 后台终止主进程，完成后释放端口并发送事件
     this.processMgr.terminate(mp, () => {
