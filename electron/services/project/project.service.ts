@@ -244,7 +244,7 @@ export class ProjectService extends EventEmitter {
   async start(idx: number, command?: string, report?: (msg: string, pct?: number) => void): Promise<boolean> {
     const proj = this.getProjectByIndex(idx)
     if (!proj) return false
-    if (this.running.has(idx)) return false
+    /* allow multi-module re-start with different command */
     if (!existsSync(proj.path)) return false
 
     return this.startByProject(proj, idx, command, report)
