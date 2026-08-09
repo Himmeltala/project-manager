@@ -457,13 +457,14 @@ export class ProjectService extends EventEmitter {
       }
       this.processMgr.cleanProjectTasks(path)
 
-    // 后台终止主进程，完成后释放端口并发送事件
-    this.processMgr.terminate(mp, () => {
-      if (port) {
-        this.processMgr.killPort(port)
-      }
-      this.emit('projectStopped', { index: idx, name })
-    })
+      // 后台终止主进程，完成后释放端口并发送事件
+      this.processMgr.terminate(mp, () => {
+        if (port) {
+          this.processMgr.killPort(port)
+        }
+        this.emit('projectStopped', { index: idx, name })
+      })
+    }
 
     return true
   }
