@@ -42,8 +42,8 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      '@': resolve(__dirname, 'src'),
-      '@electron': resolve(__dirname, 'electron'),
+      '@': resolve(import.meta.dirname, 'src'),
+      '@electron': resolve(import.meta.dirname, 'electron'),
     },
   },
   build: {
