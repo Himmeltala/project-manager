@@ -315,7 +315,7 @@ export class ProjectService extends EventEmitter {
     console.log('[DEBUG startByProject] mp.name:', mp.name, 'cmd:', cmd)
     if (command) {
       const m = /-pl\s+(\S+)/.exec(command)
-      if (m) mp.name = proj.name + " → " + (m[1].split("/").pop() || m[1])
+      if (m) mp.name = proj.name + ' → ' + (m[1].split('/').pop() || m[1])
     }
 
     const existing = this.running.get(idx) || []
@@ -324,7 +324,16 @@ export class ProjectService extends EventEmitter {
     this.processMgr.addProjectTask(proj.path, mp)
     this.allRunning.set(proj.path, mp)
 
-    console.log('[DEBUG output] starting outputThread for:', mp.name, 'pid:', mp.proc.pid, 'stdout:', !!mp.proc.stdout, 'stderr:', !!mp.proc.stderr)
+    console.log(
+      '[DEBUG output] starting outputThread for:',
+      mp.name,
+      'pid:',
+      mp.proc.pid,
+      'stdout:',
+      !!mp.proc.stdout,
+      'stderr:',
+      !!mp.proc.stderr,
+    )
     this.processMgr.startOutputThread(
       mp,
       (line) => {
@@ -734,7 +743,7 @@ export class ProjectService extends EventEmitter {
     mp.name = proj.name
     if (command) {
       const m = /-pl\s+(\S+)/.exec(command)
-      if (m) mp.name = proj.name + " → " + (m[1].split("/").pop() || m[1])
+      if (m) mp.name = proj.name + ' → ' + (m[1].split('/').pop() || m[1])
     }
     mp.command = command
 
@@ -763,7 +772,7 @@ export class ProjectService extends EventEmitter {
     mp.name = proj.name
     if (command) {
       const m = /-pl\s+(\S+)/.exec(command)
-      if (m) mp.name = proj.name + " → " + (m[1].split("/").pop() || m[1])
+      if (m) mp.name = proj.name + ' → ' + (m[1].split('/').pop() || m[1])
     }
 
     this.processMgr.startOutputThread(

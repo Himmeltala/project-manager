@@ -301,7 +301,16 @@ function registerIpc(): void {
   /** 获取 Maven/Gradle 多模块项目中可运行的子模块列表 */
   ipcMain.handle('project:getRunnableModules', (_e, idx: number) => {
     const proj = projectService.getProjectByIndex(idx)
-    console.log('[DEBUG getRunnableModules] idx:', idx, 'proj:', proj?.name, 'type:', proj?.projectType, 'path:', proj?.path)
+    console.log(
+      '[DEBUG getRunnableModules] idx:',
+      idx,
+      'proj:',
+      proj?.name,
+      'type:',
+      proj?.projectType,
+      'path:',
+      proj?.path,
+    )
     if (!proj) return []
     const provider = projectTypeRegistry.get(proj.projectType)
     const modules = provider?.detectRunnableModules?.(proj.path) ?? []
