@@ -64,6 +64,7 @@ import TaskDetailDialog from './modals/task/TaskDetailModal.vue'
 import ProxyModal from './modals/project-type/ProxyModal.vue'
 import PortModal from './modals/project-type/PortModal.vue'
 import HomeSelectorDialog from './modals/project/HomeSelectorModal.vue'
+import { getFlow } from '../../composables/strategies/registry'
 // #endregion
 
 // #region Store & State
@@ -115,10 +116,7 @@ function warnAllSources(op: string): boolean {
 }
 
 function getBuildCommands(type: string): string[] | undefined {
-  if (type === 'maven')
-    return ['mvn package -DskipTests', 'mvn package', 'mvn clean package', 'mvn install -DskipTests']
-  if (type === 'gradle') return ['gradle build -x test', 'gradle build', 'gradle clean build']
-  return undefined
+  return getFlow(type).buildCommands.length > 0 ? getFlow(type).buildCommands : undefined
 }
 // #endregion
 
@@ -218,43 +216,43 @@ async function handleStart(idx: number) {
   const proj = getProjectByIdx(idx)
   if (!proj) return
 
-  // 检查 Maven/Gradle 多模块项目
-  const modules = await window.electronAPI.invoke('project:getRunnableModules', idx)
-  if (modules && modules.length > 1) {
-    // 获取当前运行中的脚本命令，用于标记运行状态
-    const runningScripts: Record<string, string[]> = await window.electronAPI.invoke('process:getAllRunningScripts')
-    const runningCmds = runningScripts[proj.path] || []
+  const flow = getFlow(proj.projectType)
 
-    startModuleModal.open(
-      { projectName: proj.name, modules, runningCommands: runningCmds },
-      {
-        confirm: async (mods: any[]) => {
-          for (const module of mods) {
-            window.electronAPI.invoke('system:log', 'info', `启动 [${proj.name}] → ${module.name} ...`)
-            if (allSourcesMode.value) {
-              await window.electronAPI.invoke(
-                'process:startByPath',
-                proj.path,
-                `mvn spring-boot:run -pl ${module.modulePath}`,
-              )
-            } else {
-              await window.electronAPI.invoke('process:start', idx, `mvn spring-boot:run -pl ${module.modulePath}`)
+  // 多模块项目 - 弹窗选模块
+  if (flow.getStartMode() === 'module-select') {
+    const modules = await window.electronAPI.invoke('project:getRunnableModules', idx)
+    if (modules && modules.length > 1) {
+      const runningScripts: Record<string, string[]> = await window.electronAPI.invoke('process:getAllRunningScripts')
+      const runningCmds = runningScripts[proj.path] || []
+      startModuleModal.open(
+        { projectName: proj.name, modules, runningCommands: runningCmds },
+        {
+          confirm: async (mods: any[]) => {
+            for (const mod of mods) {
+              const cmd = flow.buildStartCommand(mod.modulePath)
+              window.electronAPI.invoke('system:log', 'info', `启动 [${proj.name}] - ${mod.name} ...`)
+              if (allSourcesMode.value) {
+                await window.electronAPI.invoke('process:startByPath', proj.path, cmd)
+              } else {
+                await window.electronAPI.invoke('process:start', idx, cmd)
+              }
             }
-          }
-          await store.refreshRunningInfo()
+            await store.refreshRunningInfo()
+          },
+          stop: async (mod: any) => {
+            const cmd = flow.buildStartCommand(mod.modulePath)
+            window.electronAPI.invoke('system:log', 'warning', `停止 [${proj.name}] - ${mod.name} ...`)
+            await window.electronAPI.invoke('process:stopScript', idx, cmd)
+            await store.refreshRunningInfo()
+            handleStart(idx)
+          },
         },
-        stop: async (mod: any) => {
-          window.electronAPI.invoke('system:log', 'warning', `停止 [${proj.name}] → ${mod.name} ...`)
-          await window.electronAPI.invoke('process:stopScript', idx, `mvn spring-boot:run -pl ${mod.modulePath}`)
-          await store.refreshRunningInfo()
-          // 刷新弹窗里的运行状态
-          handleStart(idx)
-        },
-      },
-    )
-    return
+      )
+      return
+    }
   }
 
+  // 单模块 / npm 项目 - 直接启动
   window.electronAPI.invoke('system:log', 'info', `启动 [${proj.name}] ...`)
   if (allSourcesMode.value) {
     await window.electronAPI.invoke('process:startByPath', proj.path)
@@ -268,32 +266,37 @@ async function handleStop(idx: number) {
   const proj = getProjectByIdx(idx)
   if (!proj) return
 
-  // 检查 Maven/Gradle 多模块项目 — 复用启动弹窗显示运行状态
-  const modules = await window.electronAPI.invoke('project:getRunnableModules', idx)
-  if (modules && modules.length > 1) {
-    const runningScripts = await window.electronAPI.invoke('process:getAllRunningScripts')
-    const runningCmds = (runningScripts?.[proj.path] || []) as string[]
-    if (runningCmds.length === 0) {
-      window.electronAPI.invoke('system:log', 'warning', `停止 [${proj.name}] — 无运行中的模块`)
+  const flow = getFlow(proj.projectType)
+
+  // 多模块项目 - 复用启动弹窗显示运行状态
+  if (flow.getStartMode() === 'module-select') {
+    const modules = await window.electronAPI.invoke('project:getRunnableModules', idx)
+    if (modules && modules.length > 1) {
+      const runningScripts = await window.electronAPI.invoke('process:getAllRunningScripts')
+      const runningCmds = (runningScripts?.[proj.path] || []) as string[]
+      if (runningCmds.length === 0) {
+        window.electronAPI.invoke('system:log', 'warning', `停止 [${proj.name}] — 无运行中的模块`)
+        return
+      }
+      startModuleModal.open(
+        { projectName: proj.name, modules, runningCommands: runningCmds, mode: 'stop' },
+        {
+          stop: async (mod: any) => {
+            const cmd = flow.buildStartCommand(mod.modulePath)
+            window.electronAPI.invoke('system:log', 'warning', `停止 [${proj.name}] - ${mod.name} ...`)
+            await window.electronAPI.invoke('process:stopScript', idx, cmd)
+            await store.refreshRunningInfo()
+            handleStop(idx)
+          },
+          stopAll: async () => {
+            window.electronAPI.invoke('system:log', 'warning', `停止 [${proj.name}] 全部模块 ...`)
+            await window.electronAPI.invoke('process:stop', idx)
+            await store.refreshRunningInfo()
+          },
+        },
+      )
       return
     }
-    startModuleModal.open(
-      { projectName: proj.name, modules, runningCommands: runningCmds, mode: 'stop' },
-      {
-        stop: async (mod: any) => {
-          window.electronAPI.invoke('system:log', 'warning', `停止 [${proj.name}] → ${mod.name} ...`)
-          await window.electronAPI.invoke('process:stopScript', idx, `mvn spring-boot:run -pl ${mod.modulePath}`)
-          await store.refreshRunningInfo()
-          handleStop(idx)
-        },
-        stopAll: async () => {
-          window.electronAPI.invoke('system:log', 'warning', `停止 [${proj.name}] 全部模块 ...`)
-          await window.electronAPI.invoke('process:stop', idx)
-          await store.refreshRunningInfo()
-        },
-      },
-    )
-    return
   }
 
   window.electronAPI.invoke('system:log', 'warning', `停止 [${proj.name}] ...`)
@@ -563,7 +566,7 @@ async function handleSetJava(idx: number) {
 async function handleSetMaven(idx: number) {
   if (warnAllSources('修改 Maven 版本')) return
   const proj = getProjectByIdx(idx)
-  if (!proj || proj.projectType !== 'maven') return
+  if (!proj) return
   const homes = await window.electronAPI.invoke('system:getMavenHomes')
   currentSelectorConfig = { idx, key: 'mavenHome' }
   selectorModal.open(
@@ -575,7 +578,7 @@ async function handleSetMaven(idx: number) {
 async function handleSetTomcat(idx: number) {
   if (warnAllSources('修改 Tomcat 版本')) return
   const proj = getProjectByIdx(idx)
-  if (!proj || proj.projectType !== 'maven') return
+  if (!proj) return
   const homes = await window.electronAPI.invoke('system:getTomcatHomes')
   currentSelectorConfig = { idx, key: 'tomcatHome' }
   selectorModal.open(
