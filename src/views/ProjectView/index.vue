@@ -265,6 +265,35 @@ async function handleStart(idx: number) {
 async function handleStop(idx: number) {
   const proj = getProjectByIdx(idx)
   if (!proj) return
+
+  // 检查 Maven/Gradle 多模块项目 — 复用启动弹窗显示运行状态
+  const modules = await window.electronAPI.invoke('project:getRunnableModules', idx)
+  if (modules && modules.length > 1) {
+    const runningScripts = await window.electronAPI.invoke('process:getAllRunningScripts')
+    const runningCmds = (runningScripts?.[proj.path] || []) as string[]
+    if (runningCmds.length === 0) {
+      window.electronAPI.invoke('system:log', 'warning', `停止 [${proj.name}] — 无运行中的模块`)
+      return
+    }
+    startModuleModal.open(
+      { projectName: proj.name, modules, runningCommands: runningCmds, mode: 'stop' },
+      {
+        stop: async (mod: any) => {
+          window.electronAPI.invoke('system:log', 'warning', `停止 [${proj.name}] → ${mod.name} ...`)
+          await window.electronAPI.invoke('process:stopScript', idx, `mvn spring-boot:run -pl ${mod.modulePath}`)
+          await store.refreshRunningInfo()
+          handleStop(idx)
+        },
+        stopAll: async () => {
+          window.electronAPI.invoke('system:log', 'warning', `停止 [${proj.name}] 全部模块 ...`)
+          await window.electronAPI.invoke('process:stop', idx)
+          await store.refreshRunningInfo()
+        },
+      },
+    )
+    return
+  }
+
   window.electronAPI.invoke('system:log', 'warning', `停止 [${proj.name}] ...`)
   if (allSourcesMode.value) {
     await window.electronAPI.invoke('process:stopByPath', proj.path)
