@@ -4,39 +4,54 @@
  * @LastEditors: zhengrenfu
  * @LastEditTime: 2026-08-09
  * @FilePath: \src\views\ProjectView\modals\project-type\StartModuleModal.vue
- * @Description: 选择启动模块对话框（Maven/Gradle 多模块项目，支持多选）
+ * @Description: 选择启动模块对话框（Maven/Gradle 多模块项目，支持多选/停止）
 -->
 <template>
   <el-dialog
     :model-value="visible"
     @update:model-value="emit('close')"
     :title="`选择启动模块: ${projectName}`"
-    width="480"
+    width="520"
     top="2vh"
     :close-on-click-modal="false"
   >
-    <el-checkbox-group v-model="selected" style="width: 100%">
-      <el-checkbox
+    <el-checkbox-group v-model="selected">
+      <div
         v-for="mod in modules"
         :key="mod.modulePath"
-        :value="mod.modulePath"
         style="
-          display: block;
-          margin-bottom: 12px;
-          padding: 8px 12px;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 10px;
+          padding: 8px 10px;
           border: 1px solid var(--el-border-color-light);
           border-radius: 6px;
-          width: 100%;
         "
       >
-        <div style="font-weight: 600">{{ mod.name }}</div>
-        <div style="font-size: 12px; color: var(--el-text-color-secondary); margin-top: 2px">
-          {{ mod.modulePath }}
-          <el-tag v-if="mod.framework" size="small" style="margin-left: 8px" type="success">{{
-            mod.framework === 'spring-boot' ? 'Spring Boot' : 'Tomcat'
-          }}</el-tag>
+        <el-checkbox :value="mod.modulePath" :disabled="isRunning(mod)" style="margin-right: 0" />
+        <div style="flex: 1; min-width: 0">
+          <div style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">
+            {{ mod.name }}
+          </div>
+          <div
+            style="
+              font-size: 12px;
+              color: var(--el-text-color-secondary);
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            "
+          >
+            {{ mod.modulePath }}
+          </div>
         </div>
-      </el-checkbox>
+        <el-tag v-if="mod.framework" size="small" type="success">
+          {{ mod.framework === 'spring-boot' ? 'SB' : 'TC' }}
+        </el-tag>
+        <el-tag v-if="isRunning(mod)" size="small" type="warning">运行中</el-tag>
+        <el-button v-if="isRunning(mod)" size="small" type="danger" plain @click.stop="stopModule(mod)">停止</el-button>
+      </div>
     </el-checkbox-group>
 
     <template #footer>
@@ -59,20 +74,32 @@ const props = defineProps<{
   visible: boolean
   projectName: string
   modules: RunnableModule[]
+  runningCommands?: string[]
 }>()
 
 const emit = defineEmits<{
   (e: 'close'): void
   (e: 'confirm', modules: RunnableModule[]): void
+  (e: 'stop', module: RunnableModule): void
 }>()
 
 const selected = ref<string[]>([])
+
+function isRunning(mod: RunnableModule): boolean {
+  if (!props.runningCommands) return false
+  return props.runningCommands.some((rc) => rc.includes(mod.modulePath))
+}
+
+function stopModule(mod: RunnableModule) {
+  emit('stop', mod)
+}
 
 watch(
   () => props.visible,
   (v) => {
     if (v && props.modules.length > 0) {
-      selected.value = [props.modules[0].modulePath]
+      const firstNotRunning = props.modules.find((m) => !isRunning(m))
+      selected.value = firstNotRunning ? [firstNotRunning.modulePath] : []
     } else {
       selected.value = []
     }

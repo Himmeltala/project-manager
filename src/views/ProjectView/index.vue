@@ -219,8 +219,12 @@ async function handleStart(idx: number) {
   // 检查 Maven/Gradle 多模块项目
   const modules = await window.electronAPI.invoke('project:getRunnableModules', idx)
   if (modules && modules.length > 1) {
+    // 获取当前运行中的脚本命令，用于标记运行状态
+    const runningScripts: Record<string, string[]> = await window.electronAPI.invoke('process:getAllRunningScripts')
+    const runningCmds = runningScripts[proj.path] || []
+
     startModuleModal.open(
-      { projectName: proj.name, modules },
+      { projectName: proj.name, modules, runningCommands: runningCmds },
       {
         confirm: async (mods: any[]) => {
           for (const module of mods) {
@@ -236,6 +240,13 @@ async function handleStart(idx: number) {
             }
           }
           await store.refreshRunningInfo()
+        },
+        stop: async (mod: any) => {
+          window.electronAPI.invoke('system:log', 'warning', `停止 [${proj.name}] → ${mod.name} ...`)
+          await window.electronAPI.invoke('process:stopScript', idx, `mvn spring-boot:run -pl ${mod.modulePath}`)
+          await store.refreshRunningInfo()
+          // 刷新弹窗里的运行状态
+          handleStart(idx)
         },
       },
     )
