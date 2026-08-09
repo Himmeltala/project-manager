@@ -222,16 +222,18 @@ async function handleStart(idx: number) {
     startModuleModal.open(
       { projectName: proj.name, modules },
       {
-        confirm: async (module: any) => {
-          window.electronAPI.invoke('system:log', 'info', `启动 [${proj.name}] → ${module.name} ...`)
-          if (allSourcesMode.value) {
-            await window.electronAPI.invoke(
-              'process:startByPath',
-              proj.path,
-              `mvn spring-boot:run -pl ${module.modulePath}`,
-            )
-          } else {
-            await window.electronAPI.invoke('process:start', idx, `mvn spring-boot:run -pl ${module.modulePath}`)
+        confirm: async (mods: any[]) => {
+          for (const module of mods) {
+            window.electronAPI.invoke('system:log', 'info', `启动 [${proj.name}] → ${module.name} ...`)
+            if (allSourcesMode.value) {
+              await window.electronAPI.invoke(
+                'process:startByPath',
+                proj.path,
+                `mvn spring-boot:run -pl ${module.modulePath}`,
+              )
+            } else {
+              await window.electronAPI.invoke('process:start', idx, `mvn spring-boot:run -pl ${module.modulePath}`)
+            }
           }
           await store.refreshRunningInfo()
         },
