@@ -8,8 +8,8 @@
  */
 import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
-import type { ProxyConfigAdapter } from './index'
-import { parseProxyConfig } from './parser'
+import type { ProxyConfigAdapter } from '@electron/services/project-type/npm/proxy-config/index'
+import { parseProxyConfig } from '@electron/services/project-type/npm/proxy-config/parser'
 
 const CONFIG_FILES = ['rspack.config.js', 'rspack.config.ts']
 

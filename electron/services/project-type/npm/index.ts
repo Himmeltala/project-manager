@@ -5,9 +5,9 @@ import { existsSync } from 'fs'
 import { join } from 'path'
 import type { ProjectTypeProvider } from '@electron/services/project-type/interface'
 import type { CommandProfile, ContextMenuItem } from '@/types/project'
-import { PROFILE } from './profile'
-import { resolveStartCommand } from './start'
-import { getTaskList } from './tasks'
+import { PROFILE } from '@electron/services/project-type/npm/profile'
+import { resolveStartCommand } from '@electron/services/project-type/npm/start'
+import { getTaskList } from '@electron/services/project-type/npm/tasks'
 
 export class NpmProvider implements ProjectTypeProvider {
   readonly type = 'npm'
@@ -21,8 +21,8 @@ export class NpmProvider implements ProjectTypeProvider {
     return PROFILE
   }
 
-  resolveStartCommand(_path?: string, _module?: any): string {
-    return resolveStartCommand()
+  resolveStartCommand(path?: string, _module?: any): string {
+    return resolveStartCommand(path)
   }
 
   getTaskList(path: string) {

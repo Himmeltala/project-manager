@@ -8,7 +8,7 @@
  */
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
-import type { PortConfigAdapter } from './index'
+import type { PortConfigAdapter } from '@electron/services/project-type/npm/port-config/index'
 
 const CONFIG_FILES = ['webpack.dev.config.js', 'build/webpack.dev.config.js', 'webpack.config.js', 'webpack.config.ts']
 

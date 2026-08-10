@@ -8,7 +8,7 @@
  */
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { BackgroundTask } from '../types/task'
+import type { BackgroundTask } from '@/types/task'
 
 export const useTaskStore = defineStore('task', () => {
   const tasks = ref<BackgroundTask[]>([])

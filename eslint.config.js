@@ -44,6 +44,7 @@ export default tseslint.config(
       'local/use-design-variables': 'error',
       'local/required-script-setup': 'error',
       'local/no-unused-files': 'warn',
+      'local/no-relative-imports': 'error',
     },
   },
 

@@ -5,7 +5,8 @@ import { existsSync } from 'fs'
 import { join } from 'path'
 import type { ProjectTypeProvider } from '@electron/services/project-type/interface'
 import type { CommandProfile, ContextMenuItem } from '@/types/project'
-import { getTaskList } from '../npm/tasks'
+import { getTaskList } from '@electron/services/project-type/npm/tasks'
+import { frameworkRegistry } from '@electron/services/project-type/npm/framework/index'
 
 const PROFILE: CommandProfile = {
   start: 'pnpm run dev',
@@ -30,7 +31,13 @@ export class PnpmProvider implements ProjectTypeProvider {
     return PROFILE
   }
 
-  resolveStartCommand(_path?: string, _module?: any): string {
+  resolveStartCommand(path?: string, _module?: any): string {
+    if (path) {
+      const framework = frameworkRegistry.detect(path)
+      if (framework) {
+        return `pnpm run ${framework.getDevScript()}`
+      }
+    }
     return 'pnpm run dev'
   }
 

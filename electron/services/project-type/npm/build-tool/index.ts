@@ -8,12 +8,12 @@
  */
 import { existsSync, readFileSync, readdirSync } from 'fs'
 import { join } from 'path'
-import { VueCliAdapter } from './vue-cli'
-import { WebpackAdapter } from './webpack'
-import { ViteAdapter } from './vite'
-import { RspackAdapter } from './rspack'
-import { RollupAdapter } from './rollup'
-import { ParcelAdapter } from './parcel'
+import { VueCliAdapter } from '@electron/services/project-type/npm/build-tool/vue-cli'
+import { WebpackAdapter } from '@electron/services/project-type/npm/build-tool/webpack'
+import { ViteAdapter } from '@electron/services/project-type/npm/build-tool/vite'
+import { RspackAdapter } from '@electron/services/project-type/npm/build-tool/rspack'
+import { RollupAdapter } from '@electron/services/project-type/npm/build-tool/rollup'
+import { ParcelAdapter } from '@electron/services/project-type/npm/build-tool/parcel'
 import type { AppSettings } from '@electron/services/core/settings.service'
 
 /** 构建工具适配器接口 */

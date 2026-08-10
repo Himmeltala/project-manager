@@ -8,7 +8,7 @@
  */
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { LogItem } from '../types/log'
+import type { LogItem } from '@/types/log'
 
 export const useSystemLogStore = defineStore('systemLog', () => {
   const entries = ref<LogItem[]>([])

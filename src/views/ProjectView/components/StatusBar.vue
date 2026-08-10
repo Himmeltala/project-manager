@@ -29,8 +29,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useProjectStore } from '../../../stores/project.store'
-import { useNotificationStore } from '../../../stores/notification.store'
+import { useProjectStore } from '@/stores/project.store'
+import { useNotificationStore } from '@/stores/notification.store'
 
 defineProps<{
   showTerminal?: boolean

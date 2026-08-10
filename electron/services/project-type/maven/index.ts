@@ -5,9 +5,9 @@ import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
 import type { ProjectTypeProvider, RunnableModule } from '@electron/services/project-type/interface'
 import type { CommandProfile, ContextMenuItem } from '@/types/project'
-import { PROFILE } from './profile'
-import { resolveStartCommand, detectRunnableModules } from './start'
-import { getTaskList } from './tasks'
+import { PROFILE } from '@electron/services/project-type/maven/profile'
+import { resolveStartCommand, detectRunnableModules } from '@electron/services/project-type/maven/start'
+import { getTaskList } from '@electron/services/project-type/maven/tasks'
 
 export class MavenProvider implements ProjectTypeProvider {
   readonly type = 'maven'

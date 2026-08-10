@@ -5,9 +5,16 @@ import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
 import type { ProjectTypeProvider, RunnableModule } from '@electron/services/project-type/interface'
 import type { CommandProfile, ContextMenuItem } from '@/types/project'
-import { detectRunnableModules } from './modules'
-import { PROFILE } from './profile'
-import { getTaskList } from './tasks'
+import { detectRunnableModules } from '@electron/services/project-type/gradle/modules'
+import { PROFILE } from '@electron/services/project-type/gradle/profile'
+import { getTaskList } from '@electron/services/project-type/gradle/tasks'
+import { javaFrameworkRegistry } from '@electron/services/project-type/maven/framework/index'
+import { GradleSpringBootFramework } from '@electron/services/project-type/gradle/framework/spring-boot'
+import { QuarkusFramework } from '@electron/services/project-type/gradle/framework/quarkus'
+
+// 将 Gradle 专属的 Java 框架注册到共享注册表（在 Maven 框架之后注册，检测优先级靠后）
+javaFrameworkRegistry.register(new GradleSpringBootFramework())
+javaFrameworkRegistry.register(new QuarkusFramework())
 
 export class GradleProvider implements ProjectTypeProvider {
   readonly type = 'gradle'
@@ -24,6 +31,12 @@ export class GradleProvider implements ProjectTypeProvider {
   resolveStartCommand(path?: string, module?: RunnableModule): string {
     if (module) {
       return `gradle ${module.modulePath}:bootRun`
+    }
+    if (path) {
+      const framework = javaFrameworkRegistry.detect(path)
+      if (framework) {
+        return framework.getStartCommand(path, module?.modulePath)
+      }
     }
     return 'gradle bootRun'
   }

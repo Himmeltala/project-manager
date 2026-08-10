@@ -1,8 +1,8 @@
-import type { ProjectTypeProvider } from './interface'
-import { NpmProvider } from './npm/index'
-import { PnpmProvider } from './pnpm/index'
-import { MavenProvider } from './maven/index'
-import { GradleProvider } from './gradle/index'
+import type { ProjectTypeProvider } from '@electron/services/project-type/interface'
+import { NpmProvider } from '@electron/services/project-type/npm/index'
+import { PnpmProvider } from '@electron/services/project-type/pnpm/index'
+import { MavenProvider } from '@electron/services/project-type/maven/index'
+import { GradleProvider } from '@electron/services/project-type/gradle/index'
 
 /** 项目类型注册表 */
 class ProjectTypeRegistryImpl {

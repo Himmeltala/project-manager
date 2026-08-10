@@ -38,7 +38,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { useConfirm, useSuccess, useError } from '../../../../composables/useMessage'
+import { useConfirm, useSuccess, useError } from '@/composables/useMessage'
 
 const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<{ (e: 'close'): void }>()

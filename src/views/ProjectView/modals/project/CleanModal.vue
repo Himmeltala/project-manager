@@ -39,7 +39,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import type { BuildArtifact } from '../../../../types/project'
+import type { BuildArtifact } from '@/types/project'
 
 const props = defineProps<{
   visible: boolean

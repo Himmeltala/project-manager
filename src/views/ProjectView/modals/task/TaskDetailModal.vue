@@ -47,7 +47,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed, onUnmounted } from 'vue'
-import type { BackgroundTask } from '../../../../types/task'
+import type { BackgroundTask } from '@/types/task'
 
 const props = defineProps<{
   visible: boolean

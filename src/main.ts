@@ -13,9 +13,9 @@ import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import 'element-plus/dist/index.css'
 // dark mode CSS variables, toggled by html.dark class
 import 'element-plus/theme-chalk/dark/css-vars.css'
-import App from './App.vue'
-import router from './router'
-import { useSystemLogStore } from './stores/system-log.store'
+import App from '@/App.vue'
+import router from '@/router'
+import { useSystemLogStore } from '@/stores/system-log.store'
 
 const app = createApp(App)
 const pinia = createPinia()

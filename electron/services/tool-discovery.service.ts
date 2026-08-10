@@ -6,13 +6,13 @@
  * @FilePath: \electron\services\tool-discovery.service.ts
  * @Description: 工具发现与配置文件检测（项目类型检测请直接使用 projectTypeRegistry）
  */
-import { projectTypeRegistry } from './project-type/registry'
+import { projectTypeRegistry } from '@electron/services/project-type/registry'
 import { detectBuildToolConfigPath } from '@electron/services/project-type/npm/build-tool/index'
 import { existsSync, readdirSync } from 'fs'
 import { join } from 'path'
 import type { AppSettings } from '@electron/services/core/settings.service'
 
-export type { ProjectTypeProvider } from './project-type/interface'
+export type { ProjectTypeProvider } from '@electron/services/project-type/interface'
 
 /** 标记文件列表（用于扫描发现） */
 export const MARKER_FILES: Set<string> = new Set(['package.json', 'pom.xml'])

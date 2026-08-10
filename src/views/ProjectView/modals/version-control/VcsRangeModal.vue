@@ -40,9 +40,9 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-import { useSuccess, useError, useInfo } from '../../../../composables/useMessage'
-import { useProjectStore } from '../../../../stores/project.store'
-import { useNotificationStore } from '../../../../stores/notification.store'
+import { useSuccess, useError, useInfo } from '@/composables/useMessage'
+import { useProjectStore } from '@/stores/project.store'
+import { useNotificationStore } from '@/stores/notification.store'
 
 const props = defineProps<{ visible: boolean; mode?: 'update' | 'check' }>()
 const emit = defineEmits<{ (e: 'close'): void }>()

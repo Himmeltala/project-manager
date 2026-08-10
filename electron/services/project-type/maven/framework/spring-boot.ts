@@ -3,7 +3,7 @@
  */
 import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
-import type { JavaFramework } from './interface'
+import type { JavaFramework } from '@electron/services/project-type/maven/framework/interface'
 
 export class SpringBootFramework implements JavaFramework {
   readonly name = 'spring-boot'

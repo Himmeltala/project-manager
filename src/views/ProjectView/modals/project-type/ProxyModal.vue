@@ -94,7 +94,7 @@
 import { ref, watch } from 'vue'
 import { ElIcon } from 'element-plus'
 import { Loading } from '@element-plus/icons-vue'
-import { useSuccess, useError, usePrompt } from '../../../../composables/useMessage'
+import { useSuccess, useError, usePrompt } from '@/composables/useMessage'
 
 // 自定义 URL 选项的标识值与提示文案
 const CUSTOM_URL_VALUE = '__custom__'

@@ -136,10 +136,12 @@ function execAsyncStream(
 }
 import type { Project, BuildArtifact, DependencyDir, TaskInfo, ContextMenuItem } from '@/types/project'
 import type { RunningInfo, MigrationParams } from '@/types/process'
-import type { ManagedProcess } from '../runtime/process-manager.service'
-import { ProcessManager } from '../runtime/process-manager.service'
-import { projectTypeRegistry } from '../project-type/registry'
-import type { VcsUpdateResult, VcsRegistryImpl, VcsProvider } from '../version-control/registry'
+import type { ManagedProcess } from '@electron/services/runtime/process-manager.service'
+import { ProcessManager } from '@electron/services/runtime/process-manager.service'
+import { projectTypeRegistry } from '@electron/services/project-type/registry'
+import { javaFrameworkRegistry } from '@electron/services/project-type/maven/framework/index'
+import { TomcatFramework } from '@electron/services/project-type/maven/framework/tomcat'
+import type { VcsUpdateResult, VcsRegistryImpl, VcsProvider } from '@electron/services/version-control/registry'
 
 export class ProjectService extends EventEmitter {
   // #region Init
@@ -244,7 +246,6 @@ export class ProjectService extends EventEmitter {
   async start(idx: number, command?: string, report?: (msg: string, pct?: number) => void): Promise<boolean> {
     const proj = this.getProjectByIndex(idx)
     if (!proj) return false
-    console.log('[DEBUG start]', idx, proj.name, command)
     /* allow multi-module re-start with different command */
     if (!existsSync(proj.path)) return false
 
@@ -312,7 +313,6 @@ export class ProjectService extends EventEmitter {
     const mp = this.processMgr.spawnProc(cmd, proj.path, extraEnv)
     mp.name = proj.name
     mp.command = cmd
-    console.log('[DEBUG startByProject] mp.name:', mp.name, 'cmd:', cmd)
     if (command) {
       const m = /-pl\s+(\S+)/.exec(command)
       if (m) mp.name = proj.name + ' → ' + (m[1].split('/').pop() || m[1])
@@ -324,16 +324,6 @@ export class ProjectService extends EventEmitter {
     this.processMgr.addProjectTask(proj.path, mp)
     this.allRunning.set(proj.path, mp)
 
-    console.log(
-      '[DEBUG output] starting outputThread for:',
-      mp.name,
-      'pid:',
-      mp.proc.pid,
-      'stdout:',
-      !!mp.proc.stdout,
-      'stderr:',
-      !!mp.proc.stderr,
-    )
     this.processMgr.startOutputThread(
       mp,
       (line) => {
@@ -378,28 +368,69 @@ export class ProjectService extends EventEmitter {
 
     this.processMgr.startOutputThread(
       buildMp,
-      (line) => this.emit('outputLine', { index: idx, name: mp.name, line }),
+      (line) => this.emit('outputLine', { index: idx, name: buildMp.name, line }),
       () => {},
     )
+
+    // 通过 Java 框架注册表获取 Tomcat 部署策略
+    const javaFramework = javaFrameworkRegistry.detect(proj.path)
+    const tomcatFramework: TomcatFramework | null =
+      javaFramework?.getDeployMethod?.() === 'tomcat' ? (javaFramework as TomcatFramework) : null
 
     return new Promise((resolve) => {
       buildMp.proc.on('exit', (code) => {
         this.allRunning.delete(proj.path)
 
         if (code !== 0) {
-          this.emit('projectStopped', { index: idx, name: mp.name })
+          this.emit('projectStopped', { index: idx, name: buildMp.name })
           resolve(false)
           return
         }
 
         const artifactProvider = projectTypeRegistry.detect(proj.path)
         const warName = proj.tomcatWarName || artifactProvider.readArtifactName?.(proj.path) || proj.name
+
+        // 优先使用 TomcatFramework 的 WAR 部署和命令生成，兜底用内联逻辑
+        if (tomcatFramework) {
+          const deployed = tomcatFramework.deployWar(proj.path, proj.tomcatHome, warName)
+          if (!deployed) {
+            this.emit('projectStopped', { index: idx, name: buildMp.name })
+            resolve(false)
+            return
+          }
+          const tomcatCmd = tomcatFramework.getTomcatCommand(proj.tomcatHome)
+          const tomcatMp = this.processMgr.spawnProc(tomcatCmd, proj.path, extraEnv)
+          tomcatMp.name = proj.name
+
+          this.running.set(idx, [tomcatMp])
+          this.allRunning.set(proj.path, tomcatMp)
+
+          this.processMgr.startOutputThread(
+            tomcatMp,
+            (line) => this.emit('outputLine', { index: idx, name: tomcatMp.name, line }),
+            (port) => {
+              tomcatMp.port = port
+              this.emit('portDetected', { index: idx, port })
+            },
+          )
+
+          tomcatMp.proc.on('exit', () => {
+            if (this.allRunning.get(proj.path) === tomcatMp) this.allRunning.delete(proj.path)
+            this.emit('projectStopped', { index: idx, name: tomcatMp.name })
+          })
+
+          this.emit('projectStarted', { index: idx, name: tomcatMp.name })
+          resolve(true)
+          return
+        }
+
+        // 兜底：未检测到 Tomcat 框架时使用原有内联逻辑
         const warFile = join(proj.path, 'target', `${warName}.war`)
         const tomcatWebapps = join(proj.tomcatHome, 'webapps')
         const destWar = join(tomcatWebapps, `${warName}.war`)
 
         if (!existsSync(warFile)) {
-          this.emit('projectStopped', { index: idx, name: mp.name })
+          this.emit('projectStopped', { index: idx, name: buildMp.name })
           resolve(false)
           return
         }
@@ -407,14 +438,14 @@ export class ProjectService extends EventEmitter {
         try {
           copyFileSync(warFile, destWar)
         } catch {
-          this.emit('projectStopped', { index: idx, name: mp.name })
+          this.emit('projectStopped', { index: idx, name: buildMp.name })
           resolve(false)
           return
         }
 
         const catalina = join(proj.tomcatHome, 'bin', 'catalina.bat')
         if (!existsSync(catalina)) {
-          this.emit('projectStopped', { index: idx, name: mp.name })
+          this.emit('projectStopped', { index: idx, name: buildMp.name })
           resolve(false)
           return
         }
@@ -428,7 +459,7 @@ export class ProjectService extends EventEmitter {
 
         this.processMgr.startOutputThread(
           tomcatMp,
-          (line) => this.emit('outputLine', { index: idx, name: mp.name, line }),
+          (line) => this.emit('outputLine', { index: idx, name: tomcatMp.name, line }),
           (port) => {
             tomcatMp.port = port
             this.emit('portDetected', { index: idx, port })
@@ -437,10 +468,10 @@ export class ProjectService extends EventEmitter {
 
         tomcatMp.proc.on('exit', () => {
           if (this.allRunning.get(proj.path) === tomcatMp) this.allRunning.delete(proj.path)
-          this.emit('projectStopped', { index: idx, name: mp.name })
+          this.emit('projectStopped', { index: idx, name: tomcatMp.name })
         })
 
-        this.emit('projectStarted', { index: idx, name: mp.name })
+        this.emit('projectStarted', { index: idx, name: tomcatMp.name })
         resolve(true)
       })
     })
@@ -481,7 +512,6 @@ export class ProjectService extends EventEmitter {
   async stopScript(idx: number, command: string): Promise<boolean> {
     const proj = this.getProjectByIndex(idx)
     if (!proj) return false
-    console.log('[DEBUG start]', idx, proj.name, command)
 
     const tasks = this.processMgr.getProjectTasks(proj.path)
     const target = tasks.find((t) => t.command === command)
@@ -687,7 +717,6 @@ export class ProjectService extends EventEmitter {
   async cleanDependencies(idx: number): Promise<boolean> {
     const proj = this.getProjectByIndex(idx)
     if (!proj) return false
-    console.log('[DEBUG start]', idx, proj.name, command)
 
     const profile =
       projectTypeRegistry.get(proj.projectType)?.getProfile() ?? projectTypeRegistry.get('npm')!.getProfile()
@@ -853,7 +882,6 @@ export class ProjectService extends EventEmitter {
   async migrateProject(idx: number, params: MigrationParams): Promise<boolean> {
     const proj = this.getProjectByIndex(idx)
     if (!proj) return false
-    console.log('[DEBUG start]', idx, proj.name, command)
 
     const { mode, targetDir, svnUrl } = params
 

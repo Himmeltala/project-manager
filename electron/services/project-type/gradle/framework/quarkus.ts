@@ -3,7 +3,7 @@
  */
 import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
-import type { JavaFramework } from '../../maven/framework/interface'
+import type { JavaFramework } from '@electron/services/project-type/maven/framework/interface'
 
 export class QuarkusFramework implements JavaFramework {
   readonly name = 'quarkus'

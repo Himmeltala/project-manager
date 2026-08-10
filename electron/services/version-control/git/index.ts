@@ -9,7 +9,7 @@
 import { spawn } from 'child_process'
 import { existsSync } from 'fs'
 import { join, resolve, dirname } from 'path'
-import type { VcsProvider, VcsUpdateResult, VcsInfo, VcsCheckResult } from '../registry'
+import type { VcsProvider, VcsUpdateResult, VcsInfo, VcsCheckResult } from '@electron/services/version-control/registry'
 
 export class GitProvider implements VcsProvider {
   readonly name = 'git'

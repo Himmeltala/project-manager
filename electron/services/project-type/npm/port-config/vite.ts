@@ -8,7 +8,7 @@
  */
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
-import type { PortConfigAdapter } from './index'
+import type { PortConfigAdapter } from '@electron/services/project-type/npm/port-config/index'
 
 const CONFIG_FILES = ['vite.config.ts', 'vite.config.js']
 

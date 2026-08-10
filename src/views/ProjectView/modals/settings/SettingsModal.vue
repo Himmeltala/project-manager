@@ -89,10 +89,10 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { useSuccess } from '../../../../composables/useMessage'
-import TerminalEntriesEditorModal from '../system/TerminalEntriesEditorModal.vue'
-import ConfigOpenersEditorModal from './ConfigOpenersEditorModal.vue'
-import ConfigPriorityEditorModal from './ConfigPriorityEditorModal.vue'
+import { useSuccess } from '@/composables/useMessage'
+import TerminalEntriesEditorModal from '@/views/ProjectView/modals/system/TerminalEntriesEditorModal.vue'
+import ConfigOpenersEditorModal from '@/views/ProjectView/modals/settings/ConfigOpenersEditorModal.vue'
+import ConfigPriorityEditorModal from '@/views/ProjectView/modals/settings/ConfigPriorityEditorModal.vue'
 
 const STORE_KEY = 'settings_active_category'
 

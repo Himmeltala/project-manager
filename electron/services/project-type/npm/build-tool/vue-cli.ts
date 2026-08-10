@@ -6,7 +6,7 @@
  * @FilePath: \electron\services\build-tool\adapters\vue-cli.ts
  * @Description: Vue CLI 构建工具适配器
  */
-import type { BuildToolAdapter } from './index'
+import type { BuildToolAdapter } from '@electron/services/project-type/npm/build-tool/index'
 
 const CONFIG_FILES = ['vue.config.js']
 
