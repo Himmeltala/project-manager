@@ -49,8 +49,8 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import { useProjectStore } from '../../../../stores/project.store'
-import { useConfirm, usePrompt, useSuccess, useError, useWarning } from '../../../../composables/useMessage'
+import { useProjectStore } from '@/stores/project.store'
+import { useConfirm, usePrompt, useSuccess, useError, useWarning } from '@/composables/useMessage'
 
 const store = useProjectStore()
 

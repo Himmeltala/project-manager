@@ -3,29 +3,14 @@
  * 从 settings.gradle 解析子项目，返回可运行的 Spring Boot 模块列表
  */
 import { existsSync, readFileSync } from 'fs'
-import { join, dirname } from 'path'
+import { join } from 'path'
 import type { RunnableModule } from '@electron/services/project-type/interface'
+import { javaFrameworkRegistry } from '@electron/services/project-type/maven/framework/index'
 
+/** 通过 Java 框架注册表检测子项目是否为 Spring Boot 项目 */
 function hasSpringBootPlugin(projectPath: string): boolean {
-  const gp = join(projectPath, 'build.gradle')
-  if (existsSync(gp)) {
-    try {
-      const content = readFileSync(gp, 'utf-8')
-      return /org\.springframework\.boot/.test(content) || /id\s*['"]org\.springframework\.boot['"]/.test(content)
-    } catch {
-      /* ignore */
-    }
-  }
-  const gpk = join(projectPath, 'build.gradle.kts')
-  if (existsSync(gpk)) {
-    try {
-      const content = readFileSync(gpk, 'utf-8')
-      return /org\.springframework\.boot/.test(content) || /id\(["']org\.springframework\.boot["']\)/.test(content)
-    } catch {
-      /* ignore */
-    }
-  }
-  return false
+  const framework = javaFrameworkRegistry.detect(projectPath)
+  return framework?.name === 'spring-boot'
 }
 
 function parseSubprojects(settingsPath: string): string[] {

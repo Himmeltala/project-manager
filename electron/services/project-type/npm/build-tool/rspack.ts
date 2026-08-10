@@ -6,7 +6,7 @@
  * @FilePath: \electron\services\build-tool\adapters\rspack.ts
  * @Description: Rspack 构建工具适配器（字节跳动，Rust 重写 webpack）
  */
-import type { BuildToolAdapter } from './index'
+import type { BuildToolAdapter } from '@electron/services/project-type/npm/build-tool/index'
 
 function hasRspackDep(pkg: Record<string, any>): boolean {
   const deps = { ...pkg.dependencies, ...pkg.devDependencies }

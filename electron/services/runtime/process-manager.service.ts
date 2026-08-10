@@ -60,7 +60,6 @@ export class ProcessManager extends EventEmitter {
   }
 
   startOutputThread(mp: ManagedProcess, onLine: (line: string) => void, onPort: (port: number) => void): void {
-    console.log('[DEBUG outputThread] START pid:', mp.proc.pid, 'name:', mp.name)
     const systemEncoding = ProcessManager.getSystemEncoding()
 
     // 逐行读取
@@ -69,7 +68,6 @@ export class ProcessManager extends EventEmitter {
       let leftover = Buffer.alloc(0)
 
       stream.on('data', (chunk: Buffer) => {
-        console.log('[DEBUG outputThread] data chunk len:', chunk.length, 'pid:', mp.proc.pid)
         leftover = Buffer.concat([leftover, chunk])
         while (true) {
           const nlIndex = leftover.indexOf(10) // \n

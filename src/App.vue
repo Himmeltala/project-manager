@@ -57,10 +57,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { useProjectStore } from './stores/project.store'
+import { useProjectStore } from '@/stores/project.store'
 import { Files, Tools, Connection } from '@element-plus/icons-vue'
 import BottomPanel from '@/components/BottomPanel.vue'
-import StatusBar from './views/ProjectView/components/StatusBar.vue'
+import StatusBar from '@/views/ProjectView/components/StatusBar.vue'
 
 const theme = ref('dark')
 const themeClass = computed(() => `theme-${theme.value}`)

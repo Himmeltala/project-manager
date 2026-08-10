@@ -224,11 +224,12 @@
 <script setup lang="ts">
 // #region Imports & Setup
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import type { Project } from '../../../types/project'
-import type { TerminalEntry, ConfigOpener } from '../../../types/ipc'
-import { getTypeLabel } from '../../../utils/mockTypeLabel'
-import { useProjectStore } from '../../../stores/project.store'
-import ProjectExpandPanel from './ProjectExpandPanel.vue'
+import type { Project } from '@/types/project'
+import type { TerminalEntry, ConfigOpener } from '@/types/ipc'
+import { getTypeLabel } from '@/utils/mockTypeLabel'
+import { getFlow } from '@/composables/strategies/registry'
+import { useProjectStore } from '@/stores/project.store'
+import ProjectExpandPanel from '@/views/ProjectView/components/ProjectExpandPanel.vue'
 
 const props = defineProps<{
   projects: Project[]
@@ -336,7 +337,7 @@ const displayData = computed(() => {
       origIdx,
       name: p.name,
       typeLabel: getTypeLabel(p.projectType),
-      scaffold: p.projectType === 'npm' ? tools[p.path] || '-' : '-',
+      scaffold: getFlow(p.projectType).supportsBuildToolDetection ? tools[p.path] || '-' : '-',
       vcsLabel: labels[origIdx] || '-',
       displayPath: p.path,
       isRunning,

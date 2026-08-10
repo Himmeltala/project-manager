@@ -52,8 +52,8 @@
 </template>
 
 <script setup lang="ts">
-import { useNotificationStore } from '../../../stores/notification.store'
-import { NOTIFICATION_TYPE_META } from '../../../types/notification'
+import { useNotificationStore } from '@/stores/notification.store'
+import { NOTIFICATION_TYPE_META } from '@/types/notification'
 
 const emit = defineEmits<{
   (e: 'locateProject', projectName: string): void

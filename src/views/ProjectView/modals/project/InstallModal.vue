@@ -2,9 +2,9 @@
  * @Author: zhengrenfu
  * @Date: 2026-07-14
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-07-25
+ * @LastEditTime: 2026-08-10
  * @FilePath: \src\views\ProjectView\modals\InstallModal.vue
- * @Description: 安装依赖对话框
+ * @Description: 安装依赖对话框 — 通过 ProjectFlowAdapter 注册表驱动命令列表和选项
 -->
 <template>
   <el-dialog
@@ -17,12 +17,12 @@
   >
     <el-form label-width="0">
       <el-alert
-        :title="`将对 [${projectName}] 执行 ${defaultCmd}`"
+        :title="`将对 [${projectName}] 执行 ${selectedCommand}`"
         type="info"
         :closable="false"
         style="margin-bottom: 12px"
       />
-      <template v-if="projectType === 'npm'">
+      <template v-if="isNpmLike">
         <el-checkbox v-model="legacyPeers" style="margin-bottom: 8px">--legacy-peer-deps</el-checkbox>
         <br />
         <el-checkbox v-model="forceFlag" style="margin-bottom: 8px">--force</el-checkbox>
@@ -35,7 +35,7 @@
       <el-form-item label="额外参数:" style="margin-top: 8px; margin-bottom: 0">
         <el-input
           v-model="extraFlags"
-          :placeholder="projectType === 'npm' ? '如: --prefer-offline --no-audit' : '如: -Dmaven.test.skip=true -o'"
+          :placeholder="isNpmLike ? '如: --prefer-offline --no-audit' : '如: -Dmaven.test.skip=true -o'"
         />
       </el-form-item>
     </el-form>
@@ -48,6 +48,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
+import { getFlow } from '@/composables/strategies/registry'
 
 const props = defineProps<{
   visible: boolean
@@ -66,7 +67,19 @@ const skipTests = ref(true)
 const updateSnapshots = ref(false)
 const extraFlags = ref('')
 
-const defaultCmd = computed(() => (props.projectType === 'maven' ? 'mvn install -DskipTests' : 'npm install'))
+// 是否为 npm/pnpm 类型（控制安装选项复选框的显示）
+const isNpmLike = computed(() => {
+  const flow = getFlow(props.projectType)
+  return flow.type === 'npm' || flow.type === 'pnpm'
+})
+
+// 当前项目的安装依赖命令列表，由 flow adapter 提供，默认选中第一项
+const installCommands = computed(() => {
+  const cmds = getFlow(props.projectType).installCommands
+  return cmds.length > 0 ? cmds : ['npm install']
+})
+
+const selectedCommand = ref('')
 
 watch(
   () => props.visible,
@@ -77,12 +90,13 @@ watch(
     skipTests.value = true
     updateSnapshots.value = false
     extraFlags.value = ''
+    selectedCommand.value = installCommands.value[0] || 'npm install'
   },
 )
 
 function confirm() {
   const flags: string[] = []
-  if (props.projectType === 'npm') {
+  if (isNpmLike.value) {
     if (legacyPeers.value) flags.push('--legacy-peer-deps')
     if (forceFlag.value) flags.push('--force')
   } else {
@@ -92,7 +106,7 @@ function confirm() {
   const extra = extraFlags.value.trim()
   if (extra) flags.push(extra)
 
-  let cmd = defaultCmd.value
+  let cmd = selectedCommand.value
   if (flags.length > 0) cmd += ' ' + flags.join(' ')
   emit('confirm', cmd)
   emit('close')

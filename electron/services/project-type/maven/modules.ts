@@ -1,24 +1,21 @@
-/**
- * Maven 多模块解析
- * 从 pom.xml 递归解析子模块，返回可运行的 Spring Boot 模块列表
+/*
+ * @Author: zhengrenfu
+ * @Date: 2026-07-27
+ * @LastEditors: zhengrenfu
+ * @LastEditTime: 2026-08-10
+ * @FilePath: \electron\services\project-type\maven\modules.ts
+ * @Description: Maven 多模块解析 -- 从 pom.xml 递归解析子模块，通过 Java 框架注册表检测可运行模块
  */
 import { existsSync, readFileSync } from 'fs'
 import { join, dirname } from 'path'
+import type { RunnableModule } from '@electron/services/project-type/interface'
+import { javaFrameworkRegistry } from '@electron/services/project-type/maven/framework/index'
 
-export interface RunnableModule {
-  name: string
-  modulePath: string
-  framework: 'spring-boot' | 'tomcat' | null
-}
-
-/** 检测子模块 pom 是否包含 spring-boot-maven-plugin */
+/** 通过 Java 框架注册表检测子模块是否为可运行的 Spring Boot 项目 */
 function hasSpringBootPlugin(pomPath: string): boolean {
-  try {
-    const content = readFileSync(pomPath, 'utf-8')
-    return /spring-boot-maven-plugin/.test(content)
-  } catch {
-    return false
-  }
+  const dir = dirname(pomPath)
+  const framework = javaFrameworkRegistry.detect(dir)
+  return framework?.name === 'spring-boot'
 }
 
 /** 解析 <modules> 子模块列表 */

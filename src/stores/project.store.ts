@@ -8,8 +8,9 @@
  */
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { Project, ProjectSource } from '../types/project'
-import type { RunningInfo } from '../types/process'
+import type { Project, ProjectSource } from '@/types/project'
+import type { RunningInfo } from '@/types/process'
+import { getFlow } from '@/composables/strategies/registry'
 
 export const useProjectStore = defineStore('project', () => {
   const projects = ref<Project[]>([])
@@ -38,7 +39,7 @@ export const useProjectStore = defineStore('project', () => {
    */
   async function detectBuildTools() {
     const npmPaths = projects.value
-      .filter((p) => p.projectType === 'npm')
+      .filter((p) => getFlow(p.projectType).supportsBuildToolDetection)
       .map((p) => p.path)
       .filter(Boolean)
     if (npmPaths.length === 0) return

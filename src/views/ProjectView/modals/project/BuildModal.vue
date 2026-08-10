@@ -62,7 +62,8 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-import { getTypeLabel } from '../../../../utils/mockTypeLabel'
+import { getTypeLabel } from '@/utils/mockTypeLabel'
+import { getFlow } from '@/composables/strategies/registry'
 
 const props = defineProps<{
   visible: boolean
@@ -86,6 +87,8 @@ const zipNames = ref<string[]>([])
 
 const typeLabel = computed(() => getTypeLabel(props.projectType))
 
+const fallbackCmd = computed(() => getFlow(props.projectType).defaultBuildCommand)
+
 const buildOptions = computed(() => {
   const opts: string[] = []
   if (props.buildCommands && props.buildCommands.length > 0) {
@@ -95,7 +98,7 @@ const buildOptions = computed(() => {
       opts.push(`npm run ${name}`)
     }
   } else {
-    opts.push('npm run build')
+    opts.push(fallbackCmd.value)
   }
   return opts
 })
@@ -144,7 +147,7 @@ watch(
   () => props.visible,
   (v) => {
     if (!v) return
-    buildCommand.value = props.buildCommands?.[0] || 'npm run build'
+    buildCommand.value = props.buildCommands?.[0] || fallbackCmd.value
     zipMode.value = 'project'
     customName.value = ''
     buildName.value = ''
@@ -153,7 +156,7 @@ watch(
 )
 
 function confirm() {
-  const cmd = buildCommand.value || props.buildCommands?.[0] || 'npm run build'
+  const cmd = buildCommand.value || props.buildCommands?.[0] || fallbackCmd.value
   const name = buildName.value?.trim()
   if (name) saveName(name)
   const zipName = zipMode.value === 'custom' && customName.value?.trim() ? customName.value.trim() : ''

@@ -9,8 +9,8 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync, promises as fs } from 'fs'
 import { join, dirname, resolve, basename } from 'path'
 import type { Project } from '@/types/project'
-import { MARKER_FILES } from '../tool-discovery.service'
-import { projectTypeRegistry } from '../project-type/registry'
+import { MARKER_FILES } from '@electron/services/tool-discovery.service'
+import { projectTypeRegistry } from '@electron/services/project-type/registry'
 
 const SCAN_IGNORE =
   /(node_modules|\.git|dist|build|\.idea|\.vscode|__pycache__|\.cache|coverage|\.next|\.nuxt|\.output|\.vercel|\.serverless|\.serverless_nextjs|\.pnpm-store|\.tmp|\.temp|\.swp|\.DS_Store|Thumbs\.db|target)/i

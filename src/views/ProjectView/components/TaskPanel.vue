@@ -51,8 +51,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
-import type { BackgroundTask } from '../../../types/task'
-import { useTaskStore } from '../../../stores/task.store'
+import type { BackgroundTask } from '@/types/task'
+import { useTaskStore } from '@/stores/task.store'
 
 const store = useTaskStore()
 const selectedTaskId = ref<string | null>(null)

@@ -16,6 +16,7 @@ import noImageInSrc from './rules/no-image-in-src.js'
 import useDesignVariables from './rules/use-design-variables.js'
 import requiredScriptSetup from './rules/required-script-setup.js'
 import noUnusedFiles from './rules/no-unused-files.js'
+import noRelativeImports from './rules/no-relative-imports.js'
 
 export default {
   rules: {
@@ -28,5 +29,6 @@ export default {
     'use-design-variables': useDesignVariables,
     'required-script-setup': requiredScriptSetup,
     'no-unused-files': noUnusedFiles,
+    'no-relative-imports': noRelativeImports,
   },
 }

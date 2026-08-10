@@ -7,11 +7,11 @@
  * @Description: 项目流程策略注册表
  */
 
-import type { ProjectFlowAdapter } from './types'
-import { npmFlow } from './npm.flow'
-import { mavenFlow } from './maven.flow'
-import { gradleFlow } from './gradle.flow'
-import { pnpmFlow } from './pnpm.flow'
+import type { ProjectFlowAdapter } from '@/composables/strategies/types'
+import { npmFlow } from '@/composables/strategies/npm.flow'
+import { mavenFlow } from '@/composables/strategies/maven.flow'
+import { gradleFlow } from '@/composables/strategies/gradle.flow'
+import { pnpmFlow } from '@/composables/strategies/pnpm.flow'
 
 const flowMap: Record<string, ProjectFlowAdapter> = {
   npm: npmFlow,

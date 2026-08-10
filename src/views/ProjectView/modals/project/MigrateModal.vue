@@ -85,7 +85,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-import { useError } from '../../../../composables/useMessage'
+import { useError } from '@/composables/useMessage'
 
 const props = defineProps<{
   visible: boolean

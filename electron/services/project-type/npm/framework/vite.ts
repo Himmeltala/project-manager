@@ -3,7 +3,7 @@
  */
 import { existsSync } from 'fs'
 import { join } from 'path'
-import type { FrameworkDetector } from './interface'
+import type { FrameworkDetector } from '@electron/services/project-type/npm/framework/interface'
 
 export class ViteFramework implements FrameworkDetector {
   readonly name = 'vite'

@@ -11,7 +11,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
 import { join, dirname, resolve } from 'path'
 import { EventEmitter } from 'events'
 import type { ProjectSource } from '@/types/project'
-import { ProjectRepository } from './project-repository.service'
+import { ProjectRepository } from '@electron/services/project/project-repository.service'
 
 // #endregion
 

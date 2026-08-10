@@ -42,7 +42,7 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted } from 'vue'
-import { useProjectStore } from '../../../stores/project.store'
+import { useProjectStore } from '@/stores/project.store'
 import type { ElInput } from 'element-plus'
 
 const emit = defineEmits<{

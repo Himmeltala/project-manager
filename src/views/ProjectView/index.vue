@@ -41,30 +41,30 @@
 // #region Imports
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Refresh, Management, Plus } from '@element-plus/icons-vue'
-import { useProjectStore } from '../../stores/project.store'
-import { useNotificationStore } from '../../stores/notification.store'
-import { useInfo, useError, useSuccess, useWarning, useConfirm, usePrompt } from '../../composables/useMessage'
-import { useModal } from '../../composables/useModal'
+import { useProjectStore } from '@/stores/project.store'
+import { useNotificationStore } from '@/stores/notification.store'
+import { useInfo, useError, useSuccess, useWarning, useConfirm, usePrompt } from '@/composables/useMessage'
+import { useModal } from '@/composables/useModal'
 
-import SearchBar from './components/SearchBar.vue'
-import ProjectTable from './components/ProjectTable.vue'
+import SearchBar from '@/views/ProjectView/components/SearchBar.vue'
+import ProjectTable from '@/views/ProjectView/components/ProjectTable.vue'
 
-import BuildDialog from './modals/project/BuildModal.vue'
-import CleanModalComp from './modals/project/CleanModal.vue'
-import InstallDialog from './modals/project/InstallModal.vue'
-import MigrateDialog from './modals/project/MigrateModal.vue'
-import AddSourceDialog from './modals/project/AddSourceModal.vue'
-import SourceManageDialog from './modals/project/SourceManageModal.vue'
-import VcsRangeDialog from './modals/version-control/VcsRangeModal.vue'
-import SettingsModal from './modals/settings/SettingsModal.vue'
-import StartModuleDialog from './modals/project-type/StartModuleModal.vue'
-import SubmodulePortDialog from './modals/project-type/SubmodulePortModal.vue'
-import DataDirDialog from './modals/system/DataDirModal.vue'
-import TaskDetailDialog from './modals/task/TaskDetailModal.vue'
-import ProxyModal from './modals/project-type/ProxyModal.vue'
-import PortModal from './modals/project-type/PortModal.vue'
-import HomeSelectorDialog from './modals/project/HomeSelectorModal.vue'
-import { getFlow } from '../../composables/strategies/registry'
+import BuildDialog from '@/views/ProjectView/modals/project/BuildModal.vue'
+import CleanModalComp from '@/views/ProjectView/modals/project/CleanModal.vue'
+import InstallDialog from '@/views/ProjectView/modals/project/InstallModal.vue'
+import MigrateDialog from '@/views/ProjectView/modals/project/MigrateModal.vue'
+import AddSourceDialog from '@/views/ProjectView/modals/project/AddSourceModal.vue'
+import SourceManageDialog from '@/views/ProjectView/modals/project/SourceManageModal.vue'
+import VcsRangeDialog from '@/views/ProjectView/modals/version-control/VcsRangeModal.vue'
+import SettingsModal from '@/views/ProjectView/modals/settings/SettingsModal.vue'
+import StartModuleDialog from '@/views/ProjectView/modals/project-type/StartModuleModal.vue'
+import SubmodulePortDialog from '@/views/ProjectView/modals/project-type/SubmodulePortModal.vue'
+import DataDirDialog from '@/views/ProjectView/modals/system/DataDirModal.vue'
+import TaskDetailDialog from '@/views/ProjectView/modals/task/TaskDetailModal.vue'
+import ProxyModal from '@/views/ProjectView/modals/project-type/ProxyModal.vue'
+import PortModal from '@/views/ProjectView/modals/project-type/PortModal.vue'
+import HomeSelectorDialog from '@/views/ProjectView/modals/project/HomeSelectorModal.vue'
+import { getFlow } from '@/composables/strategies/registry'
 // #endregion
 
 // #region Store & State
@@ -139,7 +139,7 @@ function onScopeChange(val: string) {
  */
 async function detectAllBuildTools() {
   const npmPaths = allProjects.value
-    .filter((p: any) => p.projectType === 'npm')
+    .filter((p: any) => getFlow(p.projectType).supportsBuildToolDetection)
     .map((p: any) => p.path)
     .filter(Boolean)
   if (npmPaths.length === 0) return
@@ -602,7 +602,8 @@ async function onSelectorConfirm(path: string) {
 async function handleSetWarName(idx: number) {
   if (warnAllSources('修改 WAR 名称')) return
   const proj = getProjectByIdx(idx)
-  if (!proj || proj.projectType !== 'maven') return
+  const flow = getFlow(proj.projectType)
+  if (!proj || !flow.extraActions.some((a) => a.key === 'warName')) return
   const name = await usePrompt('WAR 名称', `WAR 名称（不含 .war 后缀）:`, proj.tomcatWarName)
   if (name === null) return
   const configPath = await window.electronAPI.invoke('project:getDefaultConfigPath')

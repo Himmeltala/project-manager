@@ -8,12 +8,12 @@
  */
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
-import { VueCliAdapter } from './vue-cli'
-import { ViteAdapter } from './vite'
-import { WebpackAdapter } from './webpack'
-import { RspackAdapter } from './rspack'
-import { parseProxyConfig, parseProxyLines, applySingleChange } from './parser'
-import type { ProxyEntry } from './parser'
+import { VueCliAdapter } from '@electron/services/project-type/npm/proxy-config/vue-cli'
+import { ViteAdapter } from '@electron/services/project-type/npm/proxy-config/vite'
+import { WebpackAdapter } from '@electron/services/project-type/npm/proxy-config/webpack'
+import { RspackAdapter } from '@electron/services/project-type/npm/proxy-config/rspack'
+import { parseProxyConfig, parseProxyLines, applySingleChange } from '@electron/services/project-type/npm/proxy-config/parser'
+import type { ProxyEntry } from '@electron/services/project-type/npm/proxy-config/parser'
 
 /** Proxy 代理配置适配器接口 */
 export interface ProxyConfigAdapter {

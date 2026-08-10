@@ -2,15 +2,17 @@
  * @Author: zhengrenfu
  * @Date: 2026-08-09
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-08-09
+ * @LastEditTime: 2026-08-10
  * @FilePath: \src\composables\strategies\maven.flow.ts
  * @Description: Maven 项目流程策略
  */
 
-import type { ProjectFlowAdapter } from './types'
+import type { ProjectFlowAdapter } from '@/composables/strategies/types'
 
 export const mavenFlow: ProjectFlowAdapter = {
   type: 'maven',
+
+  label: 'Maven',
 
   getStartMode: () => 'module-select',
 
@@ -26,4 +28,10 @@ export const mavenFlow: ProjectFlowAdapter = {
     { key: 'tomcat', label: 'Tomcat 版本' },
     { key: 'warName', label: 'WAR 名称' },
   ],
+
+  supportsBuildToolDetection: false,
+
+  getTaskCommandTemplate: (taskName?: string) => `mvn ${taskName || '{script}'}`,
+
+  defaultBuildCommand: 'mvn package -DskipTests',
 }

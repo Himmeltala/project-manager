@@ -6,7 +6,7 @@
  * @FilePath: \electron\services\build-tool\adapters\vite.ts
  * @Description: Vite 构建工具适配器
  */
-import type { BuildToolAdapter } from './index'
+import type { BuildToolAdapter } from '@electron/services/project-type/npm/build-tool/index'
 
 function hasViteDep(pkg: Record<string, any>): boolean {
   const deps = { ...pkg.dependencies, ...pkg.devDependencies }

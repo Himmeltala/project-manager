@@ -70,7 +70,7 @@
 import { ref, watch } from 'vue'
 import { ElIcon } from 'element-plus'
 import { Loading } from '@element-plus/icons-vue'
-import { useSuccess, useError } from '../../../../composables/useMessage'
+import { useSuccess, useError } from '@/composables/useMessage'
 
 const props = defineProps<{
   visible: boolean

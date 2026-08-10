@@ -46,7 +46,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useError, useSuccess, useConfirm } from '../../composables/useMessage'
+import { useError, useSuccess, useConfirm } from '@/composables/useMessage'
 
 interface PortProcess {
   pid: number

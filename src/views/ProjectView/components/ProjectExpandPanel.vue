@@ -81,8 +81,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Loading, InfoFilled } from '@element-plus/icons-vue'
-import { getTypeLabel } from '../../../utils/mockTypeLabel'
-import { useProjectStore } from '../../../stores/project.store'
+import { getTypeLabel } from '@/utils/mockTypeLabel'
+import { getFlow } from '@/composables/strategies/registry'
+import { useProjectStore } from '@/stores/project.store'
 
 const props = defineProps<{
   project: any
@@ -109,7 +110,7 @@ let vcsTimer: number | undefined
 const runningCommands = computed(() => store.runningScripts[props.project.path] || [])
 
 const taskRows = computed(() => {
-  const template = taskType.value === 'maven' ? 'mvn {script}' : 'npm run {script}'
+  const template = getFlow(taskType.value).getTaskCommandTemplate()
   return Object.entries(taskScripts.value).map(([name, desc]) => {
     const cmd = template.replace('{script}', name)
     return { name, description: desc || '-', command: cmd, isRunning: runningCommands.value.includes(cmd) }
@@ -149,7 +150,7 @@ async function fetchVcsInfo() {
 }
 
 async function executeTask(name: string) {
-  const template = taskType.value === 'maven' ? 'mvn {script}' : 'npm run {script}'
+  const template = getFlow(taskType.value).getTaskCommandTemplate()
   const command = template.replace('{script}', name)
   emit('runScript', props.origIdx, command)
   await store.refreshRunningScripts()
@@ -157,7 +158,7 @@ async function executeTask(name: string) {
 }
 
 async function stopTask(name: string) {
-  const template = taskType.value === 'maven' ? 'mvn {script}' : 'npm run {script}'
+  const template = getFlow(taskType.value).getTaskCommandTemplate()
   const command = template.replace('{script}', name)
   await window.electronAPI.invoke('process:stopScript', props.origIdx, command)
   await store.refreshRunningScripts()

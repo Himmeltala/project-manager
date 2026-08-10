@@ -6,10 +6,10 @@
  * @FilePath: \electron\services\port-config\index.ts
  * @Description: Dev Server 端口配置适配器 — 接口定义、注册表与工厂函数
  */
-import { VueCliAdapter } from './vue-cli'
-import { ViteAdapter } from './vite'
-import { WebpackAdapter } from './webpack'
-import { RspackAdapter } from './rspack'
+import { VueCliAdapter } from '@electron/services/project-type/npm/port-config/vue-cli'
+import { ViteAdapter } from '@electron/services/project-type/npm/port-config/vite'
+import { WebpackAdapter } from '@electron/services/project-type/npm/port-config/webpack'
+import { RspackAdapter } from '@electron/services/project-type/npm/port-config/rspack'
 
 /** Dev Server 端口配置适配器接口 */
 export interface PortConfigAdapter {
