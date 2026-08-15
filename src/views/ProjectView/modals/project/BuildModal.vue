@@ -2,8 +2,8 @@
  * @Author: zhengrenfu
  * @Date: 2026-07-14
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-07-25
- * @FilePath: \src\views\ProjectView\modals\BuildModal.vue
+ * @LastEditTime: 2026-08-15 14:38:03
+ * @FilePath: /src/views/ProjectView/modals/project/BuildModal.vue
  * @Description: 构建项目对话框
 -->
 <template>
@@ -11,12 +11,12 @@
     :model-value="visible"
     @update:model-value="emit('close')"
     :title="`构建项目: ${projectName}`"
-    width="500"
+    width="40vw"
     top="2vh"
     :close-on-click-modal="false"
   >
-    <el-form label-width="120px">
-      <el-form-item label="构建名称:">
+    <el-form label-width="160px">
+      <el-form-item label="构建名称">
         <el-select
           v-model="buildName"
           filterable
@@ -28,13 +28,13 @@
           <el-option v-for="n in savedNames" :key="n" :label="n" :value="n" />
         </el-select>
       </el-form-item>
-      <el-form-item :label="`构建命令 (${typeLabel}):`">
+      <el-form-item :label="`构建命令 (${typeLabel})`">
         <el-select v-model="buildCommand" filterable allow-create style="width: 100%">
           <el-option v-for="opt in buildOptions" :key="opt" :label="opt" :value="opt" />
         </el-select>
       </el-form-item>
       <el-divider />
-      <el-form-item label="压缩包命名:">
+      <el-form-item label="压缩包命名">
         <el-radio-group v-model="zipMode">
           <el-radio value="project">使用项目名称: dist-{{ projectName }}.zip</el-radio>
           <el-radio value="custom">自定义名称:</el-radio>
