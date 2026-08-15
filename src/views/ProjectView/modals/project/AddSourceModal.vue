@@ -35,6 +35,8 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { IPC } from '@/ipc/channels'
+
 import { useError } from '@/composables/useMessage'
 
 const props = defineProps<{ visible: boolean }>()
@@ -56,7 +58,7 @@ watch(
 )
 
 async function browseDir() {
-  const dir = await window.electronAPI.invoke('system:selectDirectory')
+  const dir = await window.electronAPI.invoke(IPC.system.selectDirectory)
   if (dir) {
     directory.value = dir
     if (!name.value) name.value = dir.split(/[/\\]/).pop() || ''
@@ -65,7 +67,7 @@ async function browseDir() {
 
 async function confirm() {
   try {
-    await window.electronAPI.invoke('source:startScanTask', name.value, directory.value)
+    await window.electronAPI.invoke(IPC.source.startScanTask, name.value, directory.value)
     emit('done')
     emit('close')
     window.dispatchEvent(new CustomEvent('openTaskPanel'))

@@ -30,6 +30,7 @@ export class ProjectRepository {
         projectType: item.type || projectTypeRegistry.detect(item.path).type,
         javaHome: item.java_home || '',
         mavenHome: item.maven_home || '',
+        gradleHome: item.gradle_home || '',
         tomcatHome: item.tomcat_home || '',
         tomcatWarName: item.tomcat_war_name || '',
       }))
@@ -45,6 +46,7 @@ export class ProjectRepository {
       type: p.projectType,
       java_home: p.javaHome,
       maven_home: p.mavenHome,
+      gradle_home: p.gradleHome,
       tomcat_home: p.tomcatHome,
       tomcat_war_name: p.tomcatWarName,
     }))
@@ -84,6 +86,7 @@ export class ProjectRepository {
             projectType: projectTypeRegistry.detect(dir).type,
             javaHome: '',
             mavenHome: '',
+            gradleHome: '',
             tomcatHome: '',
             tomcatWarName: '',
           })

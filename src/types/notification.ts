@@ -7,10 +7,10 @@
  * @Description: 通知数据结构与类型定义
  */
 
-/* Notification type enum */
+// Notification type enum
 export type NotificationType = 'vcs_remote' | 'vcs_conflict' | 'local_changes' | 'info' | 'warning' | 'error'
 
-/* Single notification item */
+// Single notification item
 export interface NotificationItem {
   id: string
   type: NotificationType

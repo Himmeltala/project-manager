@@ -16,6 +16,7 @@ import 'element-plus/theme-chalk/dark/css-vars.css'
 import App from '@/App.vue'
 import router from '@/router'
 import { useSystemLogStore } from '@/stores/system-log.store'
+import { loadTypeCapabilities } from '@/composables/useProjectType'
 
 const app = createApp(App)
 const pinia = createPinia()
@@ -56,4 +57,5 @@ for (const level of CONSOLE_LEVELS) {
   }
 }
 
-app.mount('#app')
+// 启动前拉取项目类型能力，供表格、弹窗与动作策略同步查询
+loadTypeCapabilities().then(() => app.mount('#app'))

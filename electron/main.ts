@@ -1,5 +1,8 @@
 // #region Imports
 import { app, BrowserWindow, Menu, ipcMain, dialog } from 'electron'
+import { SETTINGS_KEYS } from '@/ipc/keys'
+import { IPC, IPC_EVENT } from '@/ipc/channels'
+
 import { join, resolve, dirname } from 'path'
 import { existsSync, readFileSync, writeFileSync, mkdtempSync, readdirSync, rmSync, statSync } from 'fs'
 import { spawn } from 'child_process'
@@ -11,6 +14,7 @@ import { ProcessManager } from '@electron/services/runtime/process-manager.servi
 import { ProjectService } from '@electron/services/project/project.service'
 import { SourceManager } from '@electron/services/project/source-manager.service'
 import { TaskService } from '@electron/services/runtime/task.service'
+import { OperationRunner } from '@electron/services/runtime/operation-runner.service'
 import { NotificationService } from '@electron/services/notification.service'
 import { UpdateService } from '@electron/services/update.service'
 import { AppSettings } from '@electron/services/core/settings.service'
@@ -53,6 +57,7 @@ let projectService: ProjectService
 let taskService: TaskService
 let processMgr: ProcessManager
 let notificationService: NotificationService
+let opRunner: OperationRunner
 let updateService: UpdateService
 let appVersion: string
 let store: Store
@@ -69,7 +74,7 @@ let localCheckTimer: NodeJS.Timeout | null = null
 
 function flushOutputBuffer() {
   if (outputBuffer.length > 0) {
-    mainWindow?.webContents.send('event:outputBatch', outputBuffer)
+    mainWindow?.webContents.send(IPC_EVENT.outputBatch, outputBuffer)
     outputBuffer = []
   }
   outputFlushTimer = null
@@ -156,14 +161,14 @@ function stopVcsChecks(): void {
 }
 
 function autoStartVcsChecks(): void {
-  const remoteEnabled = settings.get('scheduled_checks.remote_enabled', false)
-  const localEnabled = settings.get('scheduled_checks.local_enabled', false)
+  const remoteEnabled = settings.get(SETTINGS_KEYS.scheduledChecks.remoteEnabled, false)
+  const localEnabled = settings.get(SETTINGS_KEYS.scheduledChecks.localEnabled, false)
   if (remoteEnabled) {
-    const interval = settings.get('scheduled_checks.remote_interval_minutes', 30)
+    const interval = settings.get(SETTINGS_KEYS.scheduledChecks.remoteIntervalMinutes, 30)
     startRemoteCheckTimer(interval)
   }
   if (localEnabled) {
-    const interval = settings.get('scheduled_checks.local_interval_minutes', 15)
+    const interval = settings.get(SETTINGS_KEYS.scheduledChecks.localIntervalMinutes, 15)
     startLocalCheckTimer(interval)
   }
 }
@@ -219,7 +224,7 @@ function createWindow(): void {
 
 // #region Menu
 function setupMenu(): void {
-  const send = (action: string) => mainWindow?.webContents.send('menu:event', { action })
+  const send = (action: string) => mainWindow?.webContents.send(IPC_EVENT.menu, { action })
   const template: Electron.MenuItemConstructorOptions[] = [
     {
       label: '版本控制',
@@ -263,15 +268,15 @@ function setupEventForwarding(): void {
     }
   })
   projectService.on('projectStarted', (data) => {
-    mainWindow?.webContents.send('event:projectStarted', data)
+    mainWindow?.webContents.send(IPC_EVENT.projectStarted, data)
     notificationService.createNotification('info', `项目已启动: ${data.name}`, '', data.name)
   })
   projectService.on('projectStopped', (data) => {
-    mainWindow?.webContents.send('event:projectStopped', data)
+    mainWindow?.webContents.send(IPC_EVENT.projectStopped, data)
     notificationService.createNotification('warning', `项目已停止: ${data.name}`, '', data.name)
   })
   projectService.on('portDetected', (data) => {
-    mainWindow?.webContents.send('event:portDetected', data)
+    mainWindow?.webContents.send(IPC_EVENT.portDetected, data)
   })
 }
 // #endregion
@@ -279,8 +284,8 @@ function setupEventForwarding(): void {
 // #region IPC Registration
 function registerIpc(): void {
   // ── project ──
-  ipcMain.handle('project:load', (_e, configPath) => ProjectRepository.load(configPath))
-  ipcMain.handle('project:loadAll', () => {
+  ipcMain.handle(IPC.project.load, (_e, configPath) => ProjectRepository.load(configPath))
+  ipcMain.handle(IPC.project.loadAll, () => {
     const allSources = sourceMgr.listSources(false)
     const allProjects: any[] = []
     for (const src of allSources) {
@@ -289,15 +294,15 @@ function registerIpc(): void {
     }
     return allProjects
   })
-  ipcMain.handle('project:save', (_e, configPath, projects) => {
+  ipcMain.handle(IPC.project.save, (_e, configPath, projects) => {
     ProjectRepository.save(configPath, projects)
   })
   ipcMain.handle('project:discover', async (_e, rootDir) => ProjectRepository.discover(rootDir))
-  ipcMain.handle('project:getDefaultConfigPath', () => sourceMgr.getActiveConfigPath())
-  ipcMain.handle('project:detectConfigFile', (_e, projectPath: string) => detectConfigFilePath(projectPath, settings))
+  ipcMain.handle(IPC.project.getDefaultConfigPath, () => sourceMgr.getActiveConfigPath())
+  ipcMain.handle(IPC.project.detectConfigFile, (_e, projectPath: string) => detectConfigFilePath(projectPath, settings))
 
   /* 获取 Maven/Gradle 多模块项目中可运行的子模块列表（按路径解析，避免"所有源"模式序号错位） */
-  ipcMain.handle('project:getRunnableModules', (_e, path: string, type: string) => {
+  ipcMain.handle(IPC.project.getRunnableModules, (_e, path: string, type: string) => {
     if (!path) return []
     const provider = projectTypeRegistry.get(type)
     const modules = provider?.detectRunnableModules?.(path) ?? []
@@ -305,10 +310,10 @@ function registerIpc(): void {
   })
 
   // ── source ──
-  ipcMain.handle('source:list', (_e, includeCounts) => sourceMgr.listSources(includeCounts))
-  ipcMain.handle('source:getActive', () => sourceMgr.getActiveSourceName())
+  ipcMain.handle(IPC.source.list, (_e, includeCounts) => sourceMgr.listSources(includeCounts))
+  ipcMain.handle(IPC.source.getActive, () => sourceMgr.getActiveSourceName())
   ipcMain.handle('source:getActiveInfo', () => sourceMgr.getActiveSource())
-  ipcMain.handle('source:switch', (_e, name) => {
+  ipcMain.handle(IPC.source.switch, (_e, name) => {
     if (sourceMgr.switchSource(name)) {
       const configPath = sourceMgr.getActiveConfigPath()
       const projects = ProjectRepository.load(configPath)
@@ -321,12 +326,12 @@ function registerIpc(): void {
   ipcMain.handle('source:add', (_e, name, configPath, sourceType, extra) =>
     sourceMgr.addSource(name, configPath, sourceType, extra),
   )
-  ipcMain.handle('source:rename', (_e, oldName, newName) => sourceMgr.renameSource(oldName, newName))
-  ipcMain.handle('source:remove', (_e, name) => sourceMgr.removeSource(name))
+  ipcMain.handle(IPC.source.rename, (_e, oldName, newName) => sourceMgr.renameSource(oldName, newName))
+  ipcMain.handle(IPC.source.remove, (_e, name) => sourceMgr.removeSource(name))
   ipcMain.handle('source:createFromDir', async (_e, name, directory) =>
     sourceMgr.createSourceFromDirectory(name, directory),
   )
-  ipcMain.handle('source:startScanTask', (_e, name, directory) => {
+  ipcMain.handle(IPC.source.startScanTask, (_e, name, directory) => {
     const taskId = taskService.addTask(`扫描项目源: ${name}`, async (report) => {
       report('正在扫描目录...', 10)
       const ok = await sourceMgr.createSourceFromDirectory(name, directory)
@@ -356,7 +361,7 @@ function registerIpc(): void {
     })
     return taskId
   })
-  ipcMain.handle('source:refreshCurrent', (_e, name) => {
+  ipcMain.handle(IPC.source.refreshCurrent, (_e, name) => {
     const sourceName = name || sourceMgr.getActiveSourceName()
     taskService.addTask(`刷新项目源: ${sourceName}`, async (report) => {
       report(`正在刷新项目源: ${sourceName}`, 10)
@@ -373,17 +378,17 @@ function registerIpc(): void {
   })
 
   // ── process (lifecycle) ──
-  ipcMain.handle('process:start', async (_e, idx, command) => projectService.start(idx, command))
-  ipcMain.handle('process:startByPath', async (_e, path, command) => projectService.startByPath(path, command))
-  ipcMain.handle('process:stop', async (_e, idx) => projectService.stop(idx))
-  ipcMain.handle('process:stopByPath', async (_e, path) => projectService.stopByPath(path))
-  ipcMain.handle('process:stopScript', async (_e, idx, command) => projectService.stopScript(idx, command))
+  ipcMain.handle(IPC.process.start, async (_e, idx, command) => projectService.start(idx, command))
+  ipcMain.handle(IPC.process.startByPath, async (_e, path, command) => projectService.startByPath(path, command))
+  ipcMain.handle(IPC.process.stop, async (_e, idx) => projectService.stop(idx))
+  ipcMain.handle(IPC.process.stopByPath, async (_e, path) => projectService.stopByPath(path))
+  ipcMain.handle(IPC.process.stopScript, async (_e, idx, command) => projectService.stopScript(idx, command))
   ipcMain.handle('process:isRunning', (_e, idx) => projectService.isRunning(idx))
-  ipcMain.handle('process:getRunningInfo', () => projectService.getRunningInfo())
-  ipcMain.handle('process:getAllRunningPaths', () => projectService.getAllRunningPaths())
-  ipcMain.handle('process:getTotalScriptsCount', () => projectService.getTotalScriptsCount())
-  ipcMain.handle('process:getAllRunningScripts', () => projectService.getAllRunningScripts())
-  ipcMain.handle('process:killPort', async (_e, port) => {
+  ipcMain.handle(IPC.process.getRunningInfo, () => projectService.getRunningInfo())
+  ipcMain.handle(IPC.process.getAllRunningPaths, () => projectService.getAllRunningPaths())
+  ipcMain.handle(IPC.process.getTotalScriptsCount, () => projectService.getTotalScriptsCount())
+  ipcMain.handle(IPC.process.getAllRunningScripts, () => projectService.getAllRunningScripts())
+  ipcMain.handle(IPC.process.killPort, async (_e, port) => {
     const ok = processMgr.killPort(port)
     if (ok)
       taskService.addTask(`杀端口:${port}`, async (report) => {
@@ -391,32 +396,34 @@ function registerIpc(): void {
       })
     return ok
   })
-  ipcMain.handle('process:listByPort', async (_e, port) => processMgr.listByPort(port))
-  ipcMain.handle('process:killPid', async (_e, pid) => processMgr.killPid(pid))
+  ipcMain.handle(IPC.process.listByPort, async (_e, port) => processMgr.listByPort(port))
+  ipcMain.handle(IPC.process.killPid, async (_e, pid) => processMgr.killPid(pid))
   ipcMain.handle('process:stopAll', () => projectService.stopAll())
 
   // ── build ──
   ipcMain.handle('projectMgr:resolveTarget', (_e, target) => projectService.resolveTarget(target))
   ipcMain.handle('projectMgr:getByIndex', (_e, idx) => projectService.getProjectByIndex(idx))
-  ipcMain.handle('projectMgr:remove', (_e, configPath, idx) => {
+  ipcMain.handle(IPC.projectMgr.remove, (_e, configPath, idx) => {
     const ok = projectService.removeProject(idx)
     if (ok) ProjectRepository.save(configPath, projectService.projects)
     return ok
   })
-  ipcMain.handle('projectMgr:delete', async (_e, configPath, idx) => {
+  ipcMain.handle(IPC.projectMgr.delete, async (_e, configPath, idx) => {
     const proj = projectService.getProjectByIndex(idx)
     const name = proj?.name || `#${idx}`
-    taskService.addTask(`物理删除:${name}`, async (report) => {
-      report(`正在物理删除项目: ${name}`, 10)
-      const ok = await projectService.deleteProject(idx)
-      if (ok) {
-        ProjectRepository.save(configPath, projectService.projects)
-        report(`项目已物理删除: ${name}`, 100)
-      } else throw new Error(`无法删除目录: ${name}`)
+    opRunner.run(`物理删除:${name}`, {
+      startMsg: `正在物理删除项目: ${name}`,
+      work: async () => {
+        const ok = await projectService.deleteProject(idx)
+        if (ok) ProjectRepository.save(configPath, projectService.projects)
+        return ok
+      },
+      doneMsg: `项目已物理删除: ${name}`,
+      failMsg: `无法删除目录: ${name}`,
     })
     return true
   })
-  ipcMain.handle('projectMgr:rename', (_e, configPath, idx, newName) => {
+  ipcMain.handle(IPC.projectMgr.rename, (_e, configPath, idx, newName) => {
     const ok = projectService.renameProject(idx, newName)
     if (ok) ProjectRepository.save(configPath, projectService.projects)
     return ok
@@ -426,98 +433,80 @@ function registerIpc(): void {
     projectService.refreshProjects(projects)
     return projects
   })
-  ipcMain.handle('projectMgr:openFolder', async (_e, path) => {
+  ipcMain.handle(IPC.projectMgr.openFolder, async (_e, path) => {
     const { shell } = await import('electron')
     const error = await shell.openPath(path)
     return !error
   })
-  ipcMain.handle('projectMgr:build', async (_e, idx, command, zipName) => {
+  ipcMain.handle(IPC.projectMgr.build, async (_e, idx, command, zipName) => {
     const proj = projectService.getProjectByIndex(idx)
     const name = proj?.name || `#${idx}`
-    taskService.addTask(`构建:${name}`, async (report) => {
-      await projectService.buildProject(idx, command, zipName, report)
+    taskService.addTask(`构建:${name}`, (report) => projectService.buildProject(idx, command, zipName, report))
+    return true
+  })
+  ipcMain.handle(IPC.projectMgr.scanBuildArtifacts, (_e, idx) => projectService.scanBuildArtifacts(idx))
+  ipcMain.handle(IPC.projectMgr.cleanArtifacts, async (_e, idx, paths) => {
+    const proj = projectService.getProjectByIndex(idx)
+    const name = proj?.name || `#${idx}`
+    opRunner.run(`清理构建产物:${name}`, {
+      startMsg: `开始清理 ${paths.length} 个构建产物`,
+      work: () => projectService.cleanArtifacts(idx, paths),
+      doneMsg: '清理完成',
+      failMsg: '清理失败',
     })
     return true
   })
-  ipcMain.handle('projectMgr:scanBuildArtifacts', (_e, idx) => projectService.scanBuildArtifacts(idx))
-  ipcMain.handle('projectMgr:cleanArtifacts', async (_e, idx, paths) => {
+  ipcMain.handle(IPC.projectMgr.getDependencyDirs, (_e, idx) => projectService.getDependencyDirs(idx))
+  ipcMain.handle(IPC.projectMgr.cleanDependencies, async (_e, idx) => {
     const proj = projectService.getProjectByIndex(idx)
     const name = proj?.name || `#${idx}`
-    taskService.addTask(`清理构建产物:${name}`, async (report) => {
-      report(`开始清理 ${paths.length} 个构建产物`, 5)
-      await projectService.cleanArtifacts(idx, paths)
-      report('清理完成', 100)
+    opRunner.run(`清理依赖目录:${name}`, {
+      startMsg: `开始清理依赖目录: ${name}`,
+      work: () => projectService.cleanDependencies(idx),
+      doneMsg: '依赖目录清理完成',
+      failMsg: '清理失败',
     })
     return true
   })
-  ipcMain.handle('projectMgr:getDependencyDirs', (_e, idx) => projectService.getDependencyDirs(idx))
-  ipcMain.handle('projectMgr:cleanDependencies', async (_e, idx) => {
+  ipcMain.handle(IPC.projectMgr.getTaskList, (_e, idx) => projectService.getTaskList(idx))
+  ipcMain.handle(IPC.projectMgr.getContextMenu, (_e, idx) => projectService.getContextMenu(idx))
+  ipcMain.handle(IPC.projectType.getCapabilities, () => projectService.getCapabilities())
+  ipcMain.handle(IPC.projectMgr.runScript, async (_e, idx, command) => {
     const proj = projectService.getProjectByIndex(idx)
     const name = proj?.name || `#${idx}`
-    taskService.addTask(`清理依赖目录:${name}`, async (report) => {
-      report(`开始清理依赖目录: ${name}`, 5)
-      const ok = await projectService.cleanDependencies(idx)
-      if (ok) report('依赖目录清理完成', 100)
-      else throw new Error('清理失败')
-    })
+    opRunner.runCommand(name, command, '脚本', () => projectService.runScript(idx, command))
     return true
   })
-  ipcMain.handle('projectMgr:getTaskList', (_e, idx) => projectService.getTaskList(idx))
-  ipcMain.handle('projectMgr:getContextMenuItems', (_e, idx) => projectService.getContextMenuItems(idx))
-  ipcMain.handle('projectMgr:runScript', async (_e, idx, command) => {
+  ipcMain.handle(IPC.projectMgr.runTask, async (_e, idx, command) => {
     const proj = projectService.getProjectByIndex(idx)
     const name = proj?.name || `#${idx}`
-    projectService.runScript(idx, command).then((ok) => {
-      if (ok) notificationService.createNotification('info', `脚本完成: ${name}`, command, name)
-      else {
-        notificationService.createNotification('error', `脚本失败: ${name}`, `${command}\\n退出码非零`, name)
-        mainWindow?.webContents.send('event:output', {
-          type: 'error',
-          text: `${name}: 脚本失败 (退出码非零) ${command}`,
-        })
-      }
-    })
-    return true
-  })
-  ipcMain.handle('projectMgr:runTask', async (_e, idx, command) => {
-    const proj = projectService.getProjectByIndex(idx)
-    const name = proj?.name || `#${idx}`
-    projectService.runTask(idx, command).then((ok) => {
-      if (ok) notificationService.createNotification('info', `任务完成: ${name}`, command, name)
-      else {
-        notificationService.createNotification('error', `任务失败: ${name}`, `${command}\\n退出码非零`, name)
-        mainWindow?.webContents.send('event:output', {
-          type: 'error',
-          text: `${name}: 任务失败 (退出码非零) ${command}`,
-        })
-      }
-    })
+    opRunner.runCommand(name, command, '任务', () => projectService.runTask(idx, command))
     return true
   })
 
   // ── task ──
-  ipcMain.handle('task:getAll', () => taskService.getAllTasks())
-  ipcMain.handle('task:getActive', () => taskService.getActiveTasks())
-  ipcMain.handle('task:get', (_e, taskId) => taskService.getTask(taskId))
-  ipcMain.handle('task:cancel', (_e, taskId) => taskService.cancelTask(taskId))
-  ipcMain.handle('task:clearFinished', () => taskService.clearFinishedTasks())
+  ipcMain.handle(IPC.task.getAll, () => taskService.getAllTasks())
+  ipcMain.handle(IPC.task.getActive, () => taskService.getActiveTasks())
+  ipcMain.handle(IPC.task.get, (_e, taskId) => taskService.getTask(taskId))
+  ipcMain.handle(IPC.task.cancel, (_e, taskId) => taskService.cancelTask(taskId))
+  ipcMain.handle(IPC.task.clearFinished, () => taskService.clearFinishedTasks())
 
   // ── notification ──
-  ipcMain.handle('notification:getAll', () => notificationService.getAll())
-  ipcMain.handle('notification:getUnreadCount', () => notificationService.getUnreadCount())
-  ipcMain.handle('notification:create', (_e, type, title, message, projectName) =>
+  ipcMain.handle(IPC.notification.getAll, () => notificationService.getAll())
+  ipcMain.handle(IPC.notification.getUnreadCount, () => notificationService.getUnreadCount())
+  ipcMain.handle(IPC.notification.create, (_e, type, title, message, projectName) =>
     notificationService.createNotification(type, title, message, projectName),
   )
-  ipcMain.handle('notification:markRead', (_e, id) => notificationService.markRead(id))
-  ipcMain.handle('notification:markAllRead', () => notificationService.markAllRead())
-  ipcMain.handle('notification:clearAll', () => notificationService.clearAll())
+  ipcMain.handle(IPC.notification.markRead, (_e, id) => notificationService.markRead(id))
+  ipcMain.handle(IPC.notification.markAllRead, () => notificationService.markAllRead())
+  ipcMain.handle(IPC.notification.clearAll, () => notificationService.clearAll())
 
   // ── vcs ──
-  ipcMain.handle('vcs:detect', (_e, path) => {
+  ipcMain.handle(IPC.vcs.detect, (_e, path) => {
     const vcs = vcsRegistry.detect(path)
     return vcs ? { name: vcs.name, label: vcs.label } : null
   })
-  ipcMain.handle('vcs:detectBatch', (_e, paths: string[]) =>
+  ipcMain.handle(IPC.vcs.detectBatch, (_e, paths: string[]) =>
     paths.map((path) => {
       const vcs = vcsRegistry.detect(path)
       return vcs ? { name: vcs.name, label: vcs.label } : null
@@ -527,27 +516,12 @@ function registerIpc(): void {
     const proj = projectService.getProjectByIndex(idx)
     if (!proj) return false
     const name = proj.name
-    const path = proj.path
-    taskService.addTask(`VCS更新:${name}`, async (report) => {
-      const vcs = vcsRegistry.detect(path)
-      const vcsLabel = vcs?.label || 'VCS'
-      report(`正在更新 [${name}] ...`, 5)
-      const result = await projectService.vcsUpdate(idx)
-      if (result.status === 'ok') report(`${vcsLabel}更新完成: ${name}`, 100)
-      else if (result.status === 'conflict') {
-        report(`${vcsLabel}更新完成，存在合并冲突: ${name}`, 100)
-        notificationService.createNotification(
-          'vcs_conflict',
-          `${vcsLabel} 冲突: ${name}`,
-          '更新完成后存在合并冲突，请手动解决',
-          name,
-          true,
-        )
-      } else throw new Error(`${vcsLabel}更新失败: ${name}\\n${result.text || ''}`)
-    })
+    opRunner.runVcsUpdate(`VCS更新:${name}`, name, vcsRegistry.detect(proj.path)?.label || 'VCS', () =>
+      projectService.vcsUpdate(idx),
+    )
     return true
   })
-  ipcMain.handle('vcs:updateRange', async (_e, params) => {
+  ipcMain.handle(IPC.vcs.updateRange, async (_e, params) => {
     const total = params.endIdx - params.startIdx + 1
     taskService.addTask(`批量更新(${total}项)`, async (report) => {
       const failed: string[] = []
@@ -566,28 +540,14 @@ function registerIpc(): void {
     return true
   })
   ipcMain.handle('vcs:log', async (_e, idx, limit) => projectService.vcsLog(idx, limit))
-  ipcMain.handle('vcs:updateByPath', async (_e, path, name) => {
-    taskService.addTask(`VCS更新:${name}`, async (report) => {
-      const vcs = vcsRegistry.detect(path)
-      const vcsLabel = vcs?.label || 'VCS'
-      report(`正在更新 [${name}] ...`, 5)
-      const result = await projectService.vcsUpdateByPath(path, name)
-      if (result.status === 'ok') report(`${vcsLabel}更新完成: ${name}`, 100)
-      else if (result.status === 'conflict') {
-        report(`${vcsLabel}更新完成，存在合并冲突: ${name}`, 100)
-        notificationService.createNotification(
-          'vcs_conflict',
-          `${vcsLabel} 冲突: ${name}`,
-          '更新完成后存在合并冲突，请手动解决',
-          name,
-          true,
-        )
-      } else throw new Error(`${vcsLabel}更新失败: ${name}\\n${result.text || ''}`)
-    })
+  ipcMain.handle(IPC.vcs.updateByPath, async (_e, path, name) => {
+    opRunner.runVcsUpdate(`VCS更新:${name}`, name, vcsRegistry.detect(path)?.label || 'VCS', () =>
+      projectService.vcsUpdateByPath(path, name),
+    )
     return true
   })
   ipcMain.handle('vcs:logByPath', async (_e, path, limit) => projectService.vcsLogByPath(path, limit))
-  ipcMain.handle('vcs:openLogGuiByPath', async (_e, path) => {
+  ipcMain.handle(IPC.vcs.openLogGuiByPath, async (_e, path) => {
     const vcs = vcsRegistry.detect(path)
     if (vcs?.openLogGui) {
       if (vcs.openLogGui(path)) return true
@@ -595,7 +555,7 @@ function registerIpc(): void {
     await projectService.vcsLogByPath(path, 20)
     return false
   })
-  ipcMain.handle('vcs:openCommitGuiByPath', async (_e, path) => {
+  ipcMain.handle(IPC.vcs.openCommitGuiByPath, async (_e, path) => {
     const vcs = vcsRegistry.detect(path)
     if (vcs?.openCommitGui) return vcs.openCommitGui(path)
     return false
@@ -607,7 +567,7 @@ function registerIpc(): void {
     if (vcs?.openRepoBrowser) return vcs.openRepoBrowser(proj.path)
     return false
   })
-  ipcMain.handle('vcs:openRepoBrowserByPath', async (_e, path) => {
+  ipcMain.handle(IPC.vcs.openRepoBrowserByPath, async (_e, path) => {
     const vcs = vcsRegistry.detect(path)
     if (vcs?.openRepoBrowser) return vcs.openRepoBrowser(path)
     return false
@@ -634,7 +594,7 @@ function registerIpc(): void {
     if (vcs?.openCommitGui) return vcs.openCommitGui(proj.path)
     return false
   })
-  ipcMain.handle('vcs:checkRemote', async (_e, projects) => {
+  ipcMain.handle(IPC.vcs.checkRemote, async (_e, projects) => {
     const results: any[] = []
     for (const p of projects) {
       const vcs = vcsRegistry.detect(p.path)
@@ -647,7 +607,7 @@ function registerIpc(): void {
     }
     return results
   })
-  ipcMain.handle('vcs:checkLocal', async (_e, projects) => {
+  ipcMain.handle(IPC.vcs.checkLocal, async (_e, projects) => {
     const results: any[] = []
     for (const p of projects) {
       const vcs = vcsRegistry.detect(p.path)
@@ -666,8 +626,8 @@ function registerIpc(): void {
     }
     return results
   })
-  ipcMain.handle('vcs:info', async (_e, idx) => projectService.getVcsInfo(idx))
-  ipcMain.handle('vcs:revisionInfo', async (_e, idx) => {
+  ipcMain.handle(IPC.vcs.info, async (_e, idx) => projectService.getVcsInfo(idx))
+  ipcMain.handle(IPC.vcs.revisionInfo, async (_e, idx) => {
     const proj = projectService.getProjectByIndex(idx)
     if (!proj) return null
     const provider = vcsRegistry.detect(proj.path)
@@ -679,7 +639,7 @@ function registerIpc(): void {
     (_e, projects) =>
       projects.filter((p: { name: string; path: string }) => vcsRegistry.detect(p.path) !== null).length,
   )
-  ipcMain.handle('vcs:migrate', async (_e, idx, params) => {
+  ipcMain.handle(IPC.vcs.migrate, async (_e, idx, params) => {
     const proj = projectService.getProjectByIndex(idx)
     const name = proj?.name || `#${idx}`
     const modeLabels: Record<string, string> = { svn: 'SVN', git: 'Git', copy: '复制' }
@@ -692,23 +652,23 @@ function registerIpc(): void {
     })
     return true
   })
-  ipcMain.handle('vcs:startRemoteCheck', (_e, intervalMinutes) => {
+  ipcMain.handle(IPC.vcs.startRemoteCheck, (_e, intervalMinutes) => {
     startRemoteCheckTimer(intervalMinutes)
   })
-  ipcMain.handle('vcs:startLocalCheck', (_e, intervalMinutes) => {
+  ipcMain.handle(IPC.vcs.startLocalCheck, (_e, intervalMinutes) => {
     startLocalCheckTimer(intervalMinutes)
   })
-  ipcMain.handle('vcs:stopChecks', () => {
+  ipcMain.handle(IPC.vcs.stopChecks, () => {
     stopVcsChecks()
   })
 
   // ── settings ──
-  ipcMain.handle('settings:get', (_e, key) => settings.get(key))
-  ipcMain.handle('settings:set', (_e, key, value) => {
+  ipcMain.handle(IPC.settings.get, (_e, key) => settings.get(key))
+  ipcMain.handle(IPC.settings.set, (_e, key, value) => {
     settings.set(key, value)
-    if (key === 'theme') mainWindow?.webContents.send('event:themeChanged', value)
+    if (key === 'theme') mainWindow?.webContents.send(IPC_EVENT.themeChanged, value)
   })
-  ipcMain.handle('settings:getSchema', () => settings.getSchema())
+  ipcMain.handle(IPC.settings.getSchema, () => settings.getSchema())
   ipcMain.handle('settings:getPath', () => (settings as any)['path'] || '')
 
   // ── update ──
@@ -740,12 +700,12 @@ function registerIpc(): void {
   ipcMain.handle('system:getVersion', () => appVersion)
   ipcMain.handle('system:getDataDir', () => ensureDataDir('项目管理器', getSourceRoot()))
   ipcMain.handle('system:getSourceRoot', () => getSourceRoot())
-  ipcMain.handle('system:scanDataDir', () => scanDataDir('项目管理器'))
-  ipcMain.handle('system:deleteDataDirItem', (_e, itemPath) => deleteItem(itemPath))
-  ipcMain.handle('system:getJavaHomes', () => discoverJavaHomes())
-  ipcMain.handle('system:getMavenHomes', () => discoverMavenHomes())
-  ipcMain.handle('system:getTomcatHomes', () => discoverTomcatHomes())
-  ipcMain.handle('system:getGradleHomes', () => discoverGradleHomes())
+  ipcMain.handle(IPC.system.scanDataDir, () => scanDataDir('项目管理器'))
+  ipcMain.handle(IPC.system.deleteDataDirItem, (_e, itemPath) => deleteItem(itemPath))
+  ipcMain.handle(IPC.system.getJavaHomes, () => discoverJavaHomes())
+  ipcMain.handle(IPC.system.getMavenHomes, () => discoverMavenHomes())
+  ipcMain.handle(IPC.system.getTomcatHomes, () => discoverTomcatHomes())
+  ipcMain.handle(IPC.system.getGradleHomes, () => discoverGradleHomes())
   ipcMain.handle(
     'system:openFileWith',
     async (_e, filePath: string, opener: { name: string; path: string; args: string }) => {
@@ -763,23 +723,23 @@ function registerIpc(): void {
       }
     },
   )
-  ipcMain.handle('system:selectDirectory', async (_e, defaultPath?: string) => {
+  ipcMain.handle(IPC.system.selectDirectory, async (_e, defaultPath?: string) => {
     const result = await dialog.showOpenDialog({ properties: ['openDirectory'], defaultPath })
     return result.canceled ? null : result.filePaths[0]
   })
-  ipcMain.handle('system:log', (_e, type: string, text: string) => {
-    mainWindow?.webContents.send('event:output', { type, text })
+  ipcMain.handle(IPC.system.log, (_e, type: string, text: string) => {
+    mainWindow?.webContents.send(IPC_EVENT.output, { type, text })
   })
-  ipcMain.handle('system:getTerminalEntries', () => {
+  ipcMain.handle(IPC.system.getTerminalEntries, () => {
     try {
-      const raw: string = settings.get('terminal.entries', '')
+      const raw: string = settings.get(SETTINGS_KEYS.terminal.entries, '')
       if (raw) return JSON.parse(raw)
-      const oldPath: string = settings.get('terminal.path', '')
+      const oldPath: string = settings.get(SETTINGS_KEYS.terminal.path, '')
       if (oldPath) {
-        const oldArgs: string = settings.get('terminal.args', '--cd={path}')
-        const oldInit: string = settings.get('terminal.init_command', '')
+        const oldArgs: string = settings.get(SETTINGS_KEYS.terminal.args, '--cd={path}')
+        const oldInit: string = settings.get(SETTINGS_KEYS.terminal.initCommand, '')
         const entry = JSON.stringify([{ name: '终端', path: oldPath, args: oldArgs, init: oldInit }])
-        settings.set('terminal.entries', entry)
+        settings.set(SETTINGS_KEYS.terminal.entries, entry)
         return [{ name: '终端', path: oldPath, args: oldArgs, init: oldInit }]
       }
       return [{ name: 'Git Bash', path: 'C:\\\\Program Files\\\\Git\\\\git-bash.exe', args: '--cd={path}', init: '' }]
@@ -787,7 +747,7 @@ function registerIpc(): void {
       return [{ name: 'Git Bash', path: 'C:\\\\Program Files\\\\Git\\\\git-bash.exe', args: '--cd={path}', init: '' }]
     }
   })
-  ipcMain.handle('system:openTerminal', async (_e, projectPath: string, entry: any) => {
+  ipcMain.handle(IPC.system.openTerminal, async (_e, projectPath: string, entry: any) => {
     cleanOldTermScripts()
     const termPath: string = entry?.path || 'C:\\\\Program Files\\\\Git\\\\git-bash.exe'
     let termArgs: string = entry?.args || '--cd={path}'
@@ -812,20 +772,20 @@ function registerIpc(): void {
       spawn(termPath, args, { cwd: projectPath, windowsHide: false, detached: true }).unref()
       return true
     } catch (err) {
-      mainWindow?.webContents.send('event:output', { type: 'error', text: `打开终端失败: ${(err as Error).message}` })
+      mainWindow?.webContents.send(IPC_EVENT.output, { type: 'error', text: `打开终端失败: ${(err as Error).message}` })
       return false
     }
   })
 
   // ── proxy ──
-  ipcMain.handle('proxyConfig:detect', (_e, projectPath: string) => detectAndReadProxies(projectPath))
-  ipcMain.handle('proxyConfig:update', (_e, projectPath: string, changes: Record<string, string>) =>
+  ipcMain.handle(IPC.proxyConfig.detect, (_e, projectPath: string) => detectAndReadProxies(projectPath))
+  ipcMain.handle(IPC.proxyConfig.update, (_e, projectPath: string, changes: Record<string, string>) =>
     updateProxyTargets(projectPath, changes),
   )
 
   // ── port ──
-  ipcMain.handle('portConfig:detect', (_e, projectPath: string) => detectAndReadPort(projectPath))
-  ipcMain.handle('portConfig:update', (_e, projectPath: string, newPort: number) => {
+  ipcMain.handle(IPC.portConfig.detect, (_e, projectPath: string) => detectAndReadPort(projectPath))
+  ipcMain.handle(IPC.portConfig.update, (_e, projectPath: string, newPort: number) => {
     const portNumber = parseInt(String(newPort), 10)
     if (!Number.isFinite(portNumber) || portNumber < 1 || portNumber > 65535)
       throw new Error('端口号必须在 1-65535 之间')
@@ -833,13 +793,13 @@ function registerIpc(): void {
   })
 
   // ── store ──
-  ipcMain.handle('store:get', (_e, key: string) => storeGet(store, key))
-  ipcMain.handle('store:set', (_e, key: string, value: any) => storeSet(store, key, value))
+  ipcMain.handle(IPC.store.get, (_e, key: string) => storeGet(store, key))
+  ipcMain.handle(IPC.store.set, (_e, key: string, value: any) => storeSet(store, key, value))
   ipcMain.handle('store:delete', (_e, key: string) => storeDelete(store, key))
   ipcMain.handle('store:keys', () => storeKeys(store))
 
   // ── buildTool ──
-  ipcMain.handle('buildTool:detectBatch', (_e, paths: string[]) => detectBuildTools(paths))
+  ipcMain.handle(IPC.buildTool.detectBatch, (_e, paths: string[]) => detectBuildTools(paths))
 }
 // #endregion
 
@@ -899,54 +859,58 @@ function initServices(): void {
 
   taskService = new TaskService((key, defaultVal) => settings.get(key, defaultVal))
 
-  const updateUrl = settings.get('update.url', '')
+  const updateUrl = settings.get(SETTINGS_KEYS.update.url, '')
   updateService = new UpdateService(updateUrl)
 
   const notifyPath = join(assetDir, 'notifications.json')
   notificationService = new NotificationService(notifyPath, (key, defaultVal) => settings.get(key, defaultVal))
 
+  opRunner = new OperationRunner(taskService, notificationService, (payload) =>
+    mainWindow?.webContents.send(IPC_EVENT.output, payload),
+  )
+
   notificationService.on('notificationCreated', (data) => {
-    mainWindow?.webContents.send('event:notificationCreated', data)
+    mainWindow?.webContents.send(IPC_EVENT.notificationCreated, data)
   })
   notificationService.on('notificationsCleared', () => {
-    mainWindow?.webContents.send('event:notificationsCleared')
+    mainWindow?.webContents.send(IPC_EVENT.notificationsCleared)
   })
 
-  taskService.on('taskStarted', (data) => mainWindow?.webContents.send('event:taskStarted', data))
-  taskService.on('taskProgress', (data) => mainWindow?.webContents.send('event:taskProgress', data))
+  taskService.on('taskStarted', (data) => mainWindow?.webContents.send(IPC_EVENT.taskStarted, data))
+  taskService.on('taskProgress', (data) => mainWindow?.webContents.send(IPC_EVENT.taskProgress, data))
   taskService.on('taskCompleted', (data) => {
-    mainWindow?.webContents.send('event:taskCompleted', data)
+    mainWindow?.webContents.send(IPC_EVENT.taskCompleted, data)
     notificationService.createNotification('info', `任务完成: ${data.name}`, '')
   })
   taskService.on('taskFailed', (data) => {
-    mainWindow?.webContents.send('event:taskFailed', data)
+    mainWindow?.webContents.send(IPC_EVENT.taskFailed, data)
     notificationService.createNotification('error', `任务失败: ${data.name}`, data.error || '')
     if (data.error && mainWindow) {
-      mainWindow.webContents.send('event:output', { type: 'error', text: `${data.name}: ${data.error}` })
+      mainWindow.webContents.send(IPC_EVENT.output, { type: 'error', text: `${data.name}: ${data.error}` })
     }
   })
 
   updateService.on('updateAvailable', (data) => {
-    mainWindow?.webContents.send('event:updateAvailable', data)
+    mainWindow?.webContents.send(IPC_EVENT.updateAvailable, data)
     notificationService.createNotification('info', '发现新版本', `安装包: ${data.filename}`)
   })
-  updateService.on('updateNotFound', () => mainWindow?.webContents.send('event:updateNotFound'))
-  updateService.on('updateCheckError', (message) => mainWindow?.webContents.send('event:updateCheckError', { message }))
+  updateService.on('updateNotFound', () => mainWindow?.webContents.send(IPC_EVENT.updateNotFound))
+  updateService.on('updateCheckError', (message) => mainWindow?.webContents.send(IPC_EVENT.updateCheckError, { message }))
   updateService.on('updateDownloaded', (filePath) =>
-    mainWindow?.webContents.send('event:updateDownloaded', { filePath }),
+    mainWindow?.webContents.send(IPC_EVENT.updateDownloaded, { filePath }),
   )
 }
 
 process.on('uncaughtException', (error) => {
   const msg = `未捕获异常: ${error.message}\\n${error.stack || ''}`
   console.error(msg)
-  if (mainWindow) mainWindow.webContents.send('event:output', { type: 'error', text: msg })
+  if (mainWindow) mainWindow.webContents.send(IPC_EVENT.output, { type: 'error', text: msg })
 })
 
 process.on('unhandledRejection', (reason: any) => {
   const msg = `未处理的 Promise 拒绝: ${reason?.message || reason}`
   console.error(msg)
-  if (mainWindow) mainWindow.webContents.send('event:output', { type: 'error', text: msg })
+  if (mainWindow) mainWindow.webContents.send(IPC_EVENT.output, { type: 'error', text: msg })
 })
 // #endregion
 

@@ -7,6 +7,7 @@
  * @Description: 消息确认弹窗封装；提示信息改为输出到日志面板
  */
 import { ElMessageBox } from 'element-plus'
+import { IPC } from '@/ipc/channels'
 
 export async function useConfirm(title: string, message: string, danger = false): Promise<boolean> {
   try {
@@ -35,17 +36,17 @@ export async function usePrompt(title: string, label: string, defaultValue = '')
 }
 
 export function useSuccess(text: string) {
-  window.electronAPI.invoke('system:log', 'info', text)
+  window.electronAPI.invoke(IPC.system.log, 'info', text)
 }
 
 export function useError(text: string) {
-  window.electronAPI.invoke('system:log', 'error', text)
+  window.electronAPI.invoke(IPC.system.log, 'error', text)
 }
 
 export function useWarning(text: string) {
-  window.electronAPI.invoke('system:log', 'warning', text)
+  window.electronAPI.invoke(IPC.system.log, 'warning', text)
 }
 
 export function useInfo(text: string) {
-  window.electronAPI.invoke('system:log', 'info', text)
+  window.electronAPI.invoke(IPC.system.log, 'info', text)
 }

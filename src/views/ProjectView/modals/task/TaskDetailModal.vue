@@ -47,7 +47,10 @@
 
 <script setup lang="ts">
 import { ref, watch, computed, onUnmounted } from 'vue'
+import { IPC } from '@/ipc/channels'
+
 import type { BackgroundTask } from '@/types/task'
+import { getTaskStatusMeta } from '@/types/task'
 
 const props = defineProps<{
   visible: boolean
@@ -62,38 +65,21 @@ const task = ref<BackgroundTask | null>(null)
 const cancelling = ref(false)
 let timer: number | undefined
 
-const statusMap: Record<string, string> = {
-  pending: '等待中...',
-  running: '执行中...',
-  completed: '已完成',
-  failed: '失败',
-}
-
-const statusColors: Record<string, string> = {
-  pending: 'var(--el-text-color-secondary)',
-  running: 'var(--el-color-primary)',
-  completed: 'var(--el-color-success)',
-  failed: 'var(--el-color-danger)',
-}
-
+// 状态显示统一取自共享的任务状态元数据注册表
 const statusText = computed(() => {
   if (!task.value) return ''
-  const base = statusMap[task.value.status] || task.value.status
-  if (task.value.status === 'failed' && task.value.error) return `${base}: ${task.value.error}`
-  return base
+  const meta = getTaskStatusMeta(task.value.status)
+  if (task.value.status === 'failed' && task.value.error) return `${meta.text}: ${task.value.error}`
+  return meta.text
 })
 
-const statusColor = computed(() => statusColors[task.value?.status || ''] || 'var(--el-text-color-secondary)')
+const statusColor = computed(() => getTaskStatusMeta(task.value?.status || '').color)
 
-const progressStatus = computed(() => {
-  if (task.value?.status === 'failed') return 'exception'
-  if (task.value?.status === 'completed') return 'success'
-  return undefined
-})
+const progressStatus = computed(() => getTaskStatusMeta(task.value?.status || '').progress || undefined)
 
 async function refresh() {
   if (!props.taskId) return
-  task.value = await window.electronAPI.invoke('task:get', props.taskId)
+  task.value = await window.electronAPI.invoke(IPC.task.get, props.taskId)
 }
 
 watch(
@@ -118,7 +104,7 @@ watch(
 async function cancelTask() {
   if (!props.taskId) return
   cancelling.value = true
-  await window.electronAPI.invoke('task:cancel', props.taskId)
+  await window.electronAPI.invoke(IPC.task.cancel, props.taskId)
 }
 
 onUnmounted(() => {

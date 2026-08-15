@@ -64,7 +64,7 @@
               type="success"
               effect="plain"
               style="cursor: pointer; margin-right: 2px"
-              @click="emit('action', 'viewPorts', row.origIdx)"
+              @click="onViewPorts(row.origIdx)"
             >
               {{ p.port }}
             </el-tag>
@@ -74,7 +74,7 @@
               type="info"
               effect="plain"
               style="cursor: pointer"
-              @click="emit('action', 'viewPorts', row.origIdx)"
+              @click="onViewPorts(row.origIdx)"
             >
               +{{ row.ports.length - 2 }}
             </el-tag>
@@ -150,19 +150,19 @@
             <div class="context-menu-item" @click="handleAction('vcsCheck')">检查变更</div>
           </div>
         </div>
-        <!-- 构建子菜单（由 flow 声明驱动） -->
+        <!-- 构建子菜单（由后端 Provider 菜单结构驱动） -->
         <div
-          v-if="flowMenu?.buildGroup"
+          v-if="contextMenu.menu?.buildGroup"
           class="context-menu-item context-menu-sub"
-          @mouseenter="openSub = flowMenu.buildGroup.key"
+          @mouseenter="openSub = contextMenu.menu.buildGroup.key"
         >
-          {{ flowMenu.buildGroup.label }} <span class="sub-arrow">></span>
-          <div class="sub-menu" v-if="openSub === flowMenu.buildGroup.key" @mouseleave="openSub = ''">
+          {{ contextMenu.menu.buildGroup.label }} <span class="sub-arrow">></span>
+          <div class="sub-menu" v-if="openSub === contextMenu.menu.buildGroup.key" @mouseleave="openSub = ''">
             <div
               class="context-menu-item"
-              v-for="(item, i) in flowMenu.buildGroup.items"
+              v-for="(item, i) in contextMenu.menu.buildGroup.items"
               :key="i"
-              @click="handleAction(item.action)"
+              @click="handleAction(item.id)"
             >
               {{ item.label }}
             </div>
@@ -179,15 +179,15 @@
         </div>
         <div class="context-menu-sep" />
 
-        <!-- 类型专属设置项（由 flow 声明结构，后端注入动态值） -->
-        <template v-if="flowMenu?.typeActions?.length">
+        <!-- 类型专属设置项（后端 Provider 声明，动态值一体返回） -->
+        <template v-if="contextMenu.menu?.typeActions?.length">
           <div
             class="context-menu-item"
-            v-for="(item, i) in flowMenu.typeActions"
+            v-for="(item, i) in contextMenu.menu.typeActions"
             :key="i"
-            @click="handleAction(item.action)"
+            @click="handleAction(item.id)"
           >
-            {{ item.label }}{{ menuValues[item.action] ? ` (${menuValues[item.action]})` : '' }}
+            {{ item.label }}{{ item.value ? ` (${item.value})` : '' }}
           </div>
         </template>
 
@@ -207,12 +207,12 @@
                 </div>
               </div>
             </div>
-            <!-- 配置操作项（由 flow 声明驱动，如修改代理/修改端口） -->
+            <!-- 配置操作项（后端 Provider 声明，如修改代理/修改端口） -->
             <div
               class="context-menu-item"
-              v-for="(item, i) in flowMenu?.configItems"
+              v-for="(item, i) in contextMenu.menu?.configItems"
               :key="i"
-              @click="handleAction(item.action)"
+              @click="handleAction(item.id)"
             >
               {{ item.label }}
             </div>
@@ -226,22 +226,28 @@
 <script setup lang="ts">
 // #region Imports & Setup
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { SETTINGS_KEYS } from '@/ipc/keys'
+import { IPC } from '@/ipc/channels'
+
 import type { Project } from '@/types/project'
 import type { TerminalEntry, ConfigOpener } from '@/types/ipc'
 import { getTypeLabel } from '@/utils/mockTypeLabel'
-import { getFlow } from '@/composables/strategies/registry'
+import { getCapabilities } from '@/composables/useProjectType'
 import { useProjectStore } from '@/stores/project.store'
+import type { ProjectAction } from '@/types/project-action'
+import type { ActionContext } from '@/actions/types'
+import { actionRegistry } from '@/actions/registry'
 import ProjectExpandPanel from '@/views/ProjectView/components/ProjectExpandPanel.vue'
 
 const props = defineProps<{
   projects: Project[]
+  // 动作执行上下文，菜单点击后经注册表查询策略执行
+  actionContext: ActionContext
 }>()
 
 const store = useProjectStore()
 
-// 行动作统一通过 action 事件上抛，由父组件按动作名分发
 const emit = defineEmits<{
-  (e: 'action', action: string, idx: number): void
   (e: 'runScript', idx: number, command: string): void
 }>()
 // #endregion
@@ -264,7 +270,7 @@ const pagedData = computed(() => {
 // 保存分页状态到 store
 async function savePagination() {
   try {
-    await window.electronAPI.invoke('store:set', PAGINATION_STORE_KEY, {
+    await window.electronAPI.invoke(IPC.store.set, PAGINATION_STORE_KEY, {
       currentPage: currentPage.value,
       pageSize: pageSize.value,
     })
@@ -276,7 +282,7 @@ async function savePagination() {
 // 从 store 加载分页状态
 async function loadPagination() {
   try {
-    const saved = await window.electronAPI.invoke('store:get', PAGINATION_STORE_KEY)
+    const saved = await window.electronAPI.invoke(IPC.store.get, PAGINATION_STORE_KEY)
     if (saved && typeof saved === 'object') {
       if (saved.pageSize && PAGE_SIZE_OPTIONS.includes(saved.pageSize)) {
         pageSize.value = saved.pageSize
@@ -336,7 +342,7 @@ const displayData = computed(() => {
       origIdx,
       name: p.name,
       typeLabel: getTypeLabel(p.projectType),
-      scaffold: getFlow(p.projectType).supportsBuildToolDetection ? tools[p.path] || '-' : '-',
+      scaffold: getCapabilities(p.projectType).supportsBuildToolDetection ? tools[p.path] || '-' : '-',
       vcsLabel: labels[origIdx] || '-',
       displayPath: p.path,
       scriptText: scriptCount > 0 ? `${scriptCount} 个脚本运行中` : '-',
@@ -351,7 +357,7 @@ const displayData = computed(() => {
 
 async function detectAllVcs() {
   const paths = props.projects.map((p: any) => p.path)
-  const results = await window.electronAPI.invoke('vcs:detectBatch', paths)
+  const results = await window.electronAPI.invoke(IPC.vcs.detectBatch, paths)
   const map: Record<number, string> = {}
   for (let i = 0; i < results.length; i++) {
     const p = props.projects[i] as any
@@ -372,6 +378,8 @@ const contextMenu = ref({
   row: null as any,
   flip: false,
   arrowLeft: 0,
+  // 类型专属菜单结构（后端 Provider 返回，含动态 value）
+  menu: null as import('@/types/project').ProjectMenu | null,
 })
 const menuKey = ref(0)
 const openSub = ref('')
@@ -380,24 +388,6 @@ const openConfigSub = ref(false)
 const vcsType = ref<{ name: string; label: string } | null>(null)
 const terminalEntries = ref<TerminalEntry[]>([])
 const openers = ref<ConfigOpener[]>([])
-
-// 类型专属菜单项（后端 Provider 注册表提供，含动态 value）
-const contextMenuItems = ref<import('../../../types/project').ContextMenuItem[]>([])
-
-// 当前右键项目的 flow 菜单声明
-const flowMenu = computed(() => {
-  const proj = contextMenu.value.row?.project
-  return proj ? getFlow(proj.projectType).menu : null
-})
-
-// 后端菜单项 value 映射（按 id 匹配 flow 声明的 action）
-const menuValues = computed(() => {
-  const map: Record<string, string> = {}
-  for (const item of contextMenuItems.value) {
-    if (item.value) map[item.id] = item.value
-  }
-  return map
-})
 
 function onRowClick(_row: any) {}
 
@@ -439,6 +429,7 @@ async function onContextMenu(row: any, _column: any, event: MouseEvent) {
     name: proj?.name || '',
     path: proj?.path || '',
     row,
+    menu: null,
   }
 
   // 异步加载动态菜单数据
@@ -446,29 +437,34 @@ async function onContextMenu(row: any, _column: any, event: MouseEvent) {
   if (!proj) return
 
   // 检测 VCS 类型
-  vcsType.value = await window.electronAPI.invoke('vcs:detect', proj.path)
+  vcsType.value = await window.electronAPI.invoke(IPC.vcs.detect, proj.path)
 
   // 获取终端命令列表（右键菜单"打开终端"子菜单）
-  terminalEntries.value = await window.electronAPI.invoke('system:getTerminalEntries')
+  terminalEntries.value = await window.electronAPI.invoke(IPC.system.getTerminalEntries)
 
   // 获取外部程序列表（"通过软件打开"和"打开配置文件"共用）
   try {
-    const raw: string = await window.electronAPI.invoke('settings:get', 'openers')
+    const raw: string = await window.electronAPI.invoke(IPC.settings.get, SETTINGS_KEYS.openers)
     openers.value = raw ? JSON.parse(raw) : []
   } catch {
     openers.value = []
   }
 
-  // 获取类型专属右键菜单项（后端 Provider 注册表提供，含动态 value）
-  const items = await window.electronAPI.invoke('projectMgr:getContextMenuItems', idx)
-  contextMenuItems.value = items
+  // 获取类型专属菜单结构（后端 Provider 声明并注入动态 value）
+  contextMenu.value.menu = await window.electronAPI.invoke(IPC.projectMgr.getContextMenu, idx)
 }
 
-function handleAction(action: string) {
+function handleAction(action: ProjectAction) {
   const idx = contextMenu.value.idx
   contextMenu.value.visible = false
   if (idx < 0) return
-  emit('action', action, idx)
+  // 经注册表查询动作策略并执行
+  actionRegistry.get(action)?.run(props.actionContext, idx)
+}
+
+// 端口标签点击，直接经注册表执行端口详情策略
+function onViewPorts(origIdx: number) {
+  actionRegistry.get('viewPorts')?.run(props.actionContext, origIdx)
 }
 
 // 打开右键菜单选中的终端命令
@@ -476,14 +472,14 @@ function openTerminal(entry: TerminalEntry) {
   contextMenu.value.visible = false
   const path = contextMenu.value.row?.project?.path
   // spread 剥离响应式代理，避免 structured clone 无法序列化 Vue Proxy
-  if (path) window.electronAPI.invoke('system:openTerminal', path, { ...entry })
+  if (path) window.electronAPI.invoke(IPC.system.openTerminal, path, { ...entry })
 }
 
 // 通过外部程序打开项目目录
 function openProjectWith(opener: ConfigOpener) {
   contextMenu.value.visible = false
   const path = contextMenu.value.row?.project?.path
-  if (path) window.electronAPI.invoke('system:openFileWith', path, { ...opener })
+  if (path) window.electronAPI.invoke(IPC.system.openFileWith, path, { ...opener })
 }
 
 // 通过外部程序打开配置文件
@@ -493,9 +489,9 @@ async function openConfigFile(opener: ConfigOpener) {
   if (!proj) return
 
   // 检测项目配置文件（优先级：构建工具配置 > 脚手架主文件）
-  const configPath = await window.electronAPI.invoke('project:detectConfigFile', proj.path)
+  const configPath = await window.electronAPI.invoke(IPC.project.detectConfigFile, proj.path)
   if (configPath) {
-    await window.electronAPI.invoke('system:openFileWith', configPath, { ...opener })
+    await window.electronAPI.invoke(IPC.system.openFileWith, configPath, { ...opener })
   }
 }
 

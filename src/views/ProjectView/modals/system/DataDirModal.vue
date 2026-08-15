@@ -38,6 +38,8 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { IPC } from '@/ipc/channels'
+
 import { useConfirm, useSuccess, useError } from '@/composables/useMessage'
 
 const props = defineProps<{ visible: boolean }>()
@@ -51,7 +53,7 @@ watch(
   () => props.visible,
   async (v) => {
     if (v) {
-      const result = await window.electronAPI.invoke('system:scanDataDir')
+      const result = await window.electronAPI.invoke(IPC.system.scanDataDir)
       items.value = result.items
       dataDir.value = result.dataDir
       totalSizeStr.value = formatSize(result.totalSize)
@@ -67,16 +69,16 @@ function formatSize(bytes: number): string {
 }
 
 function openDir() {
-  window.electronAPI.invoke('projectMgr:openFolder', dataDir.value)
+  window.electronAPI.invoke(IPC.projectMgr.openFolder, dataDir.value)
 }
 
 async function deleteItem(path: string, name: string) {
   const ok = await useConfirm('确认删除', `确认删除 ${name}？`)
   if (!ok) return
-  const success = await window.electronAPI.invoke('system:deleteDataDirItem', path)
+  const success = await window.electronAPI.invoke(IPC.system.deleteDataDirItem, path)
   if (success) {
     useSuccess(`已删除: ${name}`)
-    const result = await window.electronAPI.invoke('system:scanDataDir')
+    const result = await window.electronAPI.invoke(IPC.system.scanDataDir)
     items.value = result.items
     totalSizeStr.value = formatSize(result.totalSize)
   } else {

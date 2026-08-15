@@ -7,6 +7,7 @@
  * @Description: 构建工具适配器 — 接口定义、注册表、工厂与批量检测
  */
 import { existsSync, readFileSync, readdirSync } from 'fs'
+import { SETTINGS_KEYS } from '@/ipc/keys'
 import { join } from 'path'
 import { VueCliAdapter } from '@electron/services/project-type/npm/build-tool/vue-cli'
 import { WebpackAdapter } from '@electron/services/project-type/npm/build-tool/webpack'
@@ -134,7 +135,7 @@ export function detectBuildToolConfigPath(projectPath: string, settings?: AppSet
   let customPriority: Record<string, string[]> = {}
   if (settings) {
     try {
-      customPriority = JSON.parse(settings.get('buildtool.config_priority', '{}'))
+      customPriority = JSON.parse(settings.get(SETTINGS_KEYS.buildtoolConfigPriority, '{}'))
     } catch {
       customPriority = {}
     }

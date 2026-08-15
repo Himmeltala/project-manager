@@ -29,6 +29,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { IPC } from '@/ipc/channels'
+
 import { useProjectStore } from '@/stores/project.store'
 import { useNotificationStore } from '@/stores/notification.store'
 
@@ -76,9 +78,9 @@ function toggleTask() {
 }
 
 async function refreshTaskCount() {
-  const tasks = await window.electronAPI.invoke('task:getActive')
+  const tasks = await window.electronAPI.invoke(IPC.task.getActive)
   activeTaskCount.value = tasks.length
-  scriptCount.value = await window.electronAPI.invoke('process:getTotalScriptsCount')
+  scriptCount.value = await window.electronAPI.invoke(IPC.process.getTotalScriptsCount)
 }
 
 const sbCleanups: (() => void)[] = []

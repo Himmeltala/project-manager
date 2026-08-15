@@ -49,6 +49,8 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { IPC } from '@/ipc/channels'
+
 import { useProjectStore } from '@/stores/project.store'
 import { useConfirm, usePrompt, useSuccess, useError, useWarning } from '@/composables/useMessage'
 
@@ -72,7 +74,7 @@ watch(
 )
 
 async function load() {
-  sources.value = await window.electronAPI.invoke('source:list', true)
+  sources.value = await window.electronAPI.invoke(IPC.source.list, true)
   sources.value = sources.value.map((s) => ({ ...s, typeLabel: s.type === 'file' ? '文件' : '目录' }))
 }
 
@@ -83,7 +85,7 @@ async function switchSource(row?: any) {
     return
   }
   if (name === sources.value.find((s) => s.isActive)?.name) return
-  await window.electronAPI.invoke('source:switch', name)
+  await window.electronAPI.invoke(IPC.source.switch, name)
   useSuccess(`已切换到: ${name}`)
   await load()
   await store.loadProjects()
@@ -99,7 +101,7 @@ async function renameSource() {
   }
   const newName = await usePrompt('重命名源', `修改 [${name}] 的名称:`, name)
   if (!newName || !newName.trim() || newName.trim() === name) return
-  await window.electronAPI.invoke('source:rename', name, newName.trim())
+  await window.electronAPI.invoke(IPC.source.rename, name, newName.trim())
   useSuccess(`已重命名为: ${newName}`)
   await load()
 }
@@ -116,7 +118,7 @@ async function deleteSource() {
   }
   const ok = await useConfirm('确认删除', `确认删除项目源 '${name}'？`)
   if (!ok) return
-  await window.electronAPI.invoke('source:remove', name)
+  await window.electronAPI.invoke(IPC.source.remove, name)
   useSuccess(`已删除: ${name}`)
   await load()
 }
@@ -127,7 +129,7 @@ async function refreshSource() {
     useWarning('请选择要刷新的源')
     return
   }
-  await window.electronAPI.invoke('source:refreshCurrent', name)
+  await window.electronAPI.invoke(IPC.source.refreshCurrent, name)
   await load()
 }
 </script>

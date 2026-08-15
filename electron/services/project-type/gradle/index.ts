@@ -4,7 +4,8 @@
 import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
 import type { ProjectTypeProvider, RunnableModule } from '@electron/services/project-type/interface'
-import type { CommandProfile, ContextMenuItem } from '@/types/project'
+import type { CommandProfile, ProjectMenu, Project } from '@/types/project'
+import { homePathValue } from '@electron/services/project-type/value'
 import { detectRunnableModules } from '@electron/services/project-type/gradle/modules'
 import { PROFILE } from '@electron/services/project-type/gradle/profile'
 import { getTaskList } from '@electron/services/project-type/gradle/tasks'
@@ -19,6 +20,20 @@ javaFrameworkRegistry.register(new QuarkusFramework())
 export class GradleProvider implements ProjectTypeProvider {
   readonly type = 'gradle'
   readonly label = 'Gradle'
+  readonly startMode = 'module-select'
+  readonly buildStartCommandTemplate = 'gradle :{module}:bootRun'
+  readonly modulePathSeparator = ':'
+  readonly buildCommands = ['gradle build -x test', 'gradle build', 'gradle clean build']
+  readonly installCommands = ['gradle build', 'gradle clean build']
+  readonly installFlags = [
+    { value: '-x test', label: '-x test', default: true },
+    { value: '--refresh-dependencies', label: '--refresh-dependencies (强制刷新依赖)' },
+  ]
+  readonly installExtraPlaceholder = '如: -Dmaven.test.skip=true -o'
+  readonly taskCommandTemplate = 'gradle {script}'
+  readonly defaultBuildCommand = 'gradle build -x test'
+  readonly supportsBuildToolDetection = false
+  readonly nestedBuildOutputDirs = ['build']
 
   detect(path: string): boolean {
     return existsSync(join(path, 'build.gradle')) || existsSync(join(path, 'build.gradle.kts'))
@@ -63,11 +78,26 @@ export class GradleProvider implements ProjectTypeProvider {
     return getTaskList(path)
   }
 
-  getContextMenuItems(): ContextMenuItem[] {
-    return [
-      { id: 'java', label: 'Java 版本', value: null },
-      { id: 'gradle', label: 'Gradle 版本', value: null },
-    ]
+  getMenu(): ProjectMenu {
+    return {
+      buildGroup: {
+        key: 'build',
+        label: '构建',
+        items: [
+          { id: 'install', label: '安装依赖' },
+          { id: 'clean', label: '清理构建产物' },
+        ],
+      },
+      typeActions: [
+        { id: 'java', label: 'Java 版本' },
+        { id: 'gradle', label: 'Gradle 版本' },
+      ],
+    }
+  }
+
+  resolveMenuValue(id: string, proj: Project): string | null {
+    const homes: Record<string, string> = { java: proj.javaHome, gradle: proj.gradleHome }
+    return id in homes ? homePathValue(homes[id]) : null
   }
 
   getConfigFilePath(path: string): string | null {

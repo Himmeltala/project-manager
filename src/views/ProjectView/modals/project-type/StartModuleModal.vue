@@ -47,7 +47,7 @@
           </div>
         </div>
         <el-tag v-if="mod.framework" size="small" type="success" style="flex-shrink: 0">{{
-          mod.framework === 'spring-boot' ? 'SB' : 'TC'
+          getFrameworkBadge(mod.framework)
         }}</el-tag>
         <el-tag v-if="isRunning(mod)" size="small" type="warning" style="flex-shrink: 0">运行中</el-tag>
         <el-button
@@ -82,12 +82,8 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-
-interface RunnableModule {
-  name: string
-  modulePath: string
-  framework: 'spring-boot' | 'tomcat' | null
-}
+import type { RunnableModule } from '@/types/project'
+import { getFrameworkBadge } from '@/utils/frameworkMeta'
 
 const props = defineProps<{
   visible: boolean

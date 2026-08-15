@@ -40,6 +40,8 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
+import { IPC } from '@/ipc/channels'
+
 import { useSuccess, useError, useInfo } from '@/composables/useMessage'
 import { useProjectStore } from '@/stores/project.store'
 import { useNotificationStore } from '@/stores/notification.store'
@@ -84,7 +86,7 @@ async function execute() {
   loading.value = true
   try {
     if (dialogMode.value === 'update') {
-      const result = await window.electronAPI.invoke('vcs:updateRange', {
+      const result = await window.electronAPI.invoke(IPC.vcs.updateRange, {
         startIdx: startIdx.value,
         endIdx: endIdx.value,
       })
@@ -93,15 +95,15 @@ async function execute() {
       const projects = store.projects
         .slice(startIdx.value - 1, endIdx.value)
         .map((p) => ({ name: p.name, path: p.path }))
-      const count = await window.electronAPI.invoke('vcs:count', projects)
+      const count = await window.electronAPI.invoke(IPC.vcs.count, projects)
       if (count === 0) {
         useInfo('范围内没有版本控制项目')
         return
       }
       useInfo(`正在检查 ${count} 个项目的状态...`)
       const [remote, local] = await Promise.all([
-        window.electronAPI.invoke('vcs:checkRemote', projects),
-        window.electronAPI.invoke('vcs:checkLocal', projects),
+        window.electronAPI.invoke(IPC.vcs.checkRemote, projects),
+        window.electronAPI.invoke(IPC.vcs.checkLocal, projects),
       ])
       const total = remote.length + local.length
       if (total > 0) {

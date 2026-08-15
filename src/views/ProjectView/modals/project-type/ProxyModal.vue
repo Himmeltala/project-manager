@@ -92,6 +92,8 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { IPC } from '@/ipc/channels'
+
 import { ElIcon } from 'element-plus'
 import { Loading } from '@element-plus/icons-vue'
 import { useSuccess, useError, usePrompt } from '@/composables/useMessage'
@@ -122,7 +124,7 @@ watch(
     adapterLabel.value = ''
     proxies.value = []
     try {
-      const result = await window.electronAPI.invoke('proxyConfig:detect', props.projectPath)
+      const result = await window.electronAPI.invoke(IPC.proxyConfig.detect, props.projectPath)
       if (result && result.adapter) {
         adapterLabel.value = result.label || ''
         proxies.value = result.proxies || []
@@ -156,7 +158,7 @@ async function save() {
   if (Object.keys(pending.value).length === 0) return
   try {
     const changes = JSON.parse(JSON.stringify(pending.value)) as Record<string, string>
-    const result = await window.electronAPI.invoke('proxyConfig:update', props.projectPath, changes)
+    const result = await window.electronAPI.invoke(IPC.proxyConfig.update, props.projectPath, changes)
     if (result.failed.length > 0) {
       useError(`保存失败，未生效: ${result.failed.join(', ')}`)
     } else {

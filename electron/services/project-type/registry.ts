@@ -16,6 +16,16 @@ class ProjectTypeRegistryImpl {
     return this.providers.get(type)
   }
 
+  /* 所有已注册的提供者 */
+  all(): ProjectTypeProvider[] {
+    return Array.from(this.providers.values())
+  }
+
+  /* 按类型查询，未知类型回退第一个注册的提供者 */
+  getOrDefault(type: string): ProjectTypeProvider {
+    return this.get(type) ?? this.providers.values().next().value ?? this.providers.get('npm')!
+  }
+
   /* 按路径自动检测 */
   detect(path: string): ProjectTypeProvider {
     for (const provider of this.providers.values()) {

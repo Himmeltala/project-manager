@@ -46,6 +46,8 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { IPC } from '@/ipc/channels'
+
 import { useError, useSuccess, useConfirm } from '@/composables/useMessage'
 
 interface PortProcess {
@@ -80,7 +82,7 @@ async function doQuery() {
 
   queryLoading.value = true
   try {
-    processes.value = await window.electronAPI.invoke('process:listByPort', port)
+    processes.value = await window.electronAPI.invoke(IPC.process.listByPort, port)
     queried.value = true
   } catch {
     useError('查询失败')
@@ -98,7 +100,7 @@ async function killAllPort() {
 
   killAllLoading.value = true
   try {
-    const result = await window.electronAPI.invoke('process:killPort', port)
+    const result = await window.electronAPI.invoke(IPC.process.killPort, port)
     if (result) {
       useSuccess(`端口 ${port} 进程已终止`)
       processes.value = []
@@ -117,7 +119,7 @@ async function doKillPid(proc: PortProcess) {
   if (!ok) return
 
   try {
-    const result = await window.electronAPI.invoke('process:killPid', proc.pid)
+    const result = await window.electronAPI.invoke(IPC.process.killPid, proc.pid)
     if (result) {
       useSuccess(`PID ${proc.pid} 已终止`)
       processes.value = processes.value.filter((p) => p.pid !== proc.pid)
