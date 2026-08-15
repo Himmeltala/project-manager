@@ -1,6 +1,5 @@
 {
   "compilerOptions": {
-    "composite": true,
     "skipLibCheck": true,
     "module": "ESNext",
     "target": "ES2022",
@@ -18,6 +17,7 @@
   "include": [
     "vite.config.ts",
     "electron/**/*.ts",
+    "src/types/**/*.ts",
     "electron-builder.yml",
     "package.json"
   ]

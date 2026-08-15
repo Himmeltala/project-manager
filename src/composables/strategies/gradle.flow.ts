@@ -20,7 +20,7 @@ export const gradleFlow: ProjectFlowAdapter = {
 
   buildCommands: ['gradle build -x test', 'gradle build', 'gradle clean build'],
 
-  installCommands: [],
+  installCommands: ['gradle build', 'gradle clean build'],
 
   extraActions: [{ key: 'java', label: 'Java 版本' }],
 

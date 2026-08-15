@@ -13,7 +13,8 @@ export class SpringBootFramework implements JavaFramework {
     if (!existsSync(pomPath)) return false
     try {
       const content = readFileSync(pomPath, 'utf-8')
-      return /org\.springframework\.boot:spring-boot-maven-plugin/.test(content)
+      // pom.xml 中 groupId/artifactId 是分离的标签，不能按 Maven 坐标 "groupId:artifactId" 匹配
+      return /spring-boot-maven-plugin/.test(content)
     } catch {
       return false
     }

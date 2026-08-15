@@ -20,7 +20,7 @@ export const mavenFlow: ProjectFlowAdapter = {
 
   buildCommands: ['mvn package -DskipTests', 'mvn package', 'mvn clean package', 'mvn install -DskipTests'],
 
-  installCommands: [],
+  installCommands: ['mvn install', 'mvn clean install'],
 
   extraActions: [
     { key: 'java', label: 'Java 版本' },

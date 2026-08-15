@@ -48,14 +48,7 @@
         </template>
       </el-table-column>
       <el-table-column prop="displayPath" label="路径" min-width="200" show-overflow-tooltip sortable />
-      <el-table-column prop="statusText" label="状态" width="110" sortable :sort-method="sortStatus">
-        <template #default="{ row }">
-          <span :style="{ color: row.isRunning ? 'var(--el-color-success)' : 'var(--el-color-danger)' }">
-            {{ row.statusText }}
-          </span>
-        </template>
-      </el-table-column>
-      <!-- 脚本运行情况独立成列，不占用状态列 -->
+      <!-- 脚本运行情况独立成列 -->
       <el-table-column prop="scriptText" label="脚本" width="130" align="center" sortable :sort-method="sortScripts">
         <template #default="{ row }">
           <span :class="row.scriptCount > 0 ? 'script-running' : 'script-idle'">{{ row.scriptText }}</span>
@@ -87,18 +80,6 @@
             </el-tag>
           </template>
           <span v-else>-</span>
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" width="230" align="center" fixed="right">
-        <template #default="{ row }">
-          <div class="action-btns">
-            <el-button size="small" type="primary" link @click="emit('action', 'start', row.origIdx)">启动</el-button>
-            <el-button size="small" type="danger" link @click="emit('action', 'stop', row.origIdx)">停止</el-button>
-            <el-button size="small" type="primary" link @click="emit('action', 'build', row.origIdx)">构建</el-button>
-            <el-button size="small" type="primary" link @click="emit('action', 'vcsUpdate', row.origIdx)"
-              >更新</el-button
-            >
-          </div>
         </template>
       </el-table-column>
     </el-table>
@@ -233,7 +214,6 @@ import ProjectExpandPanel from '@/views/ProjectView/components/ProjectExpandPane
 
 const props = defineProps<{
   projects: Project[]
-  allSourcesMode: boolean
 }>()
 
 const store = useProjectStore()
@@ -315,18 +295,16 @@ function getColor(name: string): string {
 
 const vcsLabels = ref<Record<number, string>>({})
 
-// 把项目列表转成表格数据，附带运行状态、脚本运行情况和端口
-// 运行状态统一从 store 读取；脚本状态以项目路径为键，切换源或重挂载后依然保留记录
+// 把项目列表转成表格数据，附带脚本运行情况和端口
+// 脚本状态以项目路径为键，切换源或重挂载后依然保留记录
 // 用 Object.freeze 阻止 Vue 深度响应式代理，减少 diff 开销
 const displayData = computed(() => {
-  const runningSet = new Map(store.runningInfo.map((r) => [r.index, r]))
   const labels = vcsLabels.value
   const scriptsMap = store.runningScripts
   const tools = store.buildTools
   return props.projects.map((p: any, i) => {
     const origIdx = p._origIdx ?? i + 1
     const idx = i + 1
-    const isRunning = props.allSourcesMode ? p.path in store.runningPaths : runningSet.has(origIdx)
     const ports = store.runningInfo
       .filter((r) => r.index === origIdx && r.port != null)
       .map((r) => ({ port: r.port!, name: r.name, modulePath: r.modulePath }))
@@ -340,8 +318,6 @@ const displayData = computed(() => {
       scaffold: getFlow(p.projectType).supportsBuildToolDetection ? tools[p.path] || '-' : '-',
       vcsLabel: labels[origIdx] || '-',
       displayPath: p.path,
-      isRunning,
-      statusText: isRunning ? '● 项目已启动' : '○ 未启动',
       scriptText: scriptCount > 0 ? `${scriptCount} 个脚本运行中` : '-',
       scriptCount,
       portText,
@@ -388,10 +364,6 @@ const openers = ref<ConfigOpener[]>([])
 const contextMenuItems = ref<import('../../../types/project').ContextMenuItem[]>([])
 
 function onRowClick(_row: any) {}
-
-function sortStatus(a: any, b: any) {
-  return (a.isRunning ? 0 : 1) - (b.isRunning ? 0 : 1)
-}
 
 function sortScripts(a: any, b: any) {
   // 运行中脚本多的排前面，没有脚本的排最后

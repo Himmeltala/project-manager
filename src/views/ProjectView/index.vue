@@ -27,12 +27,7 @@
 
     <!-- 主内容：表格 -->
     <div class="main-content">
-      <ProjectTable
-        :projects="filteredProjects"
-        :allSourcesMode="allSourcesMode"
-        @action="handleRowAction"
-        @run-script="handleRunScript"
-      />
+      <ProjectTable :projects="filteredProjects" @action="handleRowAction" @run-script="handleRunScript" />
     </div>
   </div>
 </template>
@@ -220,7 +215,7 @@ async function handleStart(idx: number) {
 
   // 多模块项目 - 弹窗选模块
   if (flow.getStartMode() === 'module-select') {
-    const modules = await window.electronAPI.invoke('project:getRunnableModules', idx)
+    const modules = await window.electronAPI.invoke('project:getRunnableModules', proj.path, proj.projectType)
     if (modules && modules.length > 1) {
       const runningScripts: Record<string, string[]> = await window.electronAPI.invoke('process:getAllRunningScripts')
       const runningCmds = runningScripts[proj.path] || []
@@ -270,7 +265,7 @@ async function handleStop(idx: number) {
 
   // 多模块项目 - 复用启动弹窗显示运行状态
   if (flow.getStartMode() === 'module-select') {
-    const modules = await window.electronAPI.invoke('project:getRunnableModules', idx)
+    const modules = await window.electronAPI.invoke('project:getRunnableModules', proj.path, proj.projectType)
     if (modules && modules.length > 1) {
       const runningScripts = await window.electronAPI.invoke('process:getAllRunningScripts')
       const runningCmds = (runningScripts?.[proj.path] || []) as string[]

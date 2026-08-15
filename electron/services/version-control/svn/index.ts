@@ -10,6 +10,7 @@ import { exec, execSync } from 'child_process'
 import { existsSync } from 'fs'
 import { join, resolve, dirname } from 'path'
 import type { VcsProvider, VcsUpdateResult, VcsInfo, VcsCheckResult, SettingsGetter } from '@electron/services/version-control/registry'
+import * as iconv from 'iconv-lite'
 
 const CHANGE_PREFIXES = new Set(['M', 'A', 'D', '!', '?', 'C', '~', 'I', 'R'])
 const TYPE_NAMES: Record<string, string> = {
@@ -65,7 +66,8 @@ export class SvnProvider implements VcsProvider {
           if (text.includes('�')) {
             try {
               const cp = execSync('chcp', { encoding: 'utf8', windowsHide: true, timeout: 1000 })
-              text = stdout.toString((cp.includes('936') ? 'gbk' : 'latin1') as BufferEncoding)
+              // Node Buffer 不支持 gbk，用 iconv-lite 解码
+              text = iconv.decode(stdout, cp.includes('936') ? 'gbk' : 'latin1')
             } catch {
               /* keep utf-8 */
             }
@@ -76,7 +78,8 @@ export class SvnProvider implements VcsProvider {
             if (errText.includes('�')) {
               try {
                 const cp = execSync('chcp', { encoding: 'utf8', windowsHide: true, timeout: 1000 })
-                errText = stderr.toString((cp.includes('936') ? 'gbk' : 'latin1') as BufferEncoding)
+                // Node Buffer 不支持 gbk，用 iconv-lite 解码
+                errText = iconv.decode(stderr, cp.includes('936') ? 'gbk' : 'latin1')
               } catch {
                 /* keep utf-8 */
               }
@@ -125,12 +128,17 @@ export class SvnProvider implements VcsProvider {
     const svnPath = this.getSvnPath()
     try {
       const result = execSync(`"${svnPath}" info "${path}"`, {
-        encoding: 'gbk' as any,
+        encoding: 'buffer',
         timeout: 10000,
         windowsHide: true,
-      })
+      }) as Buffer
+      let text = result.toString('utf-8')
+      if (text.includes('�')) {
+        // Node Buffer 不支持 gbk，用 iconv-lite 解码
+        text = iconv.decode(result, 'gbk')
+      }
       const info: Record<string, string> = {}
-      for (const line of (result as string).split('\n')) {
+      for (const line of text.split('\n')) {
         const trimmed = line.trim()
         if (trimmed.startsWith('URL:')) info.url = trimmed.slice(4).trim()
         else if (trimmed.startsWith('Relative URL:')) info.relativeUrl = trimmed.slice(13).trim()

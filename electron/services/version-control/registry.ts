@@ -6,7 +6,6 @@
  * @FilePath: \electron\services\vcs\index.ts
  * @Description: VCS 提供者接口定义、注册表实现与全局单例
  */
-export type { VcsProvider }
 export type SettingsGetter = (key: string, defaultVal?: any) => any
 
 /** 更新结果 */

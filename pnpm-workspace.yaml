@@ -1,0 +1,7 @@
+allowBuilds:
+  electron-winstaller: true
+nodeLinker: hoisted
+overrides:
+  yauzl: 3.4.0
+  '@electron/node-gyp': 10.2.0-electron.1
+  '@types/minimatch': 3.0.5
