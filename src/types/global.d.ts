@@ -11,9 +11,9 @@ declare global {
   // eslint-disable-next-line no-unused-vars
   interface Window {
     electronAPI: import('./ipc').IpcApi
-    /* 空闲标记：5 分钟无操作后暂停后台轮询 */
+    // 空闲标记：5 分钟无操作后暂停后台轮询
     __appIdle?: boolean
-    /* 组件卸载清理函数数组，onUnmounted 时统一执行 */
+    // 组件卸载清理函数数组，onUnmounted 时统一执行
     __homeCleanups?: Array<() => void>
   }
 }

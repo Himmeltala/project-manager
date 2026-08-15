@@ -137,7 +137,15 @@ function execAsyncStream(
     })
   })
 }
-import type { Project, BuildArtifact, DependencyDir, TaskInfo, ContextMenuItem } from '@/types/project'
+import type {
+  Project,
+  BuildArtifact,
+  DependencyDir,
+  TaskInfo,
+  ContextMenuItem,
+  ProjectMenu,
+  ProjectTypeCapability,
+} from '@/types/project'
 import type { RunningInfo, MigrationParams } from '@/types/process'
 import type { ManagedProcess } from '@electron/services/runtime/process-manager.service'
 import { ProcessManager } from '@electron/services/runtime/process-manager.service'
@@ -273,6 +281,7 @@ export class ProjectService extends EventEmitter {
       projectType: '',
       javaHome: '',
       mavenHome: '',
+      gradleHome: '',
       tomcatHome: '',
       tomcatWarName: '',
     }
@@ -306,10 +315,7 @@ export class ProjectService extends EventEmitter {
     command?: string,
     report?: (msg: string, pct?: number) => void,
   ): Promise<boolean> {
-    const cmd =
-      command ||
-      (projectTypeRegistry.get(proj.projectType)?.resolveStartCommand(proj.path) ??
-        projectTypeRegistry.get('npm')!.resolveStartCommand())
+    const cmd = command || projectTypeRegistry.getOrDefault(proj.projectType).resolveStartCommand(proj.path)
 
     if (proj.tomcatHome) {
       return this.startWithTomcat(idx, proj, cmd, report)
@@ -583,8 +589,7 @@ export class ProjectService extends EventEmitter {
     const proj = this.getProjectByIndex(idx)
     if (!proj || !existsSync(proj.path)) return false
 
-    const profile =
-      projectTypeRegistry.get(proj.projectType)?.getProfile() ?? projectTypeRegistry.get('npm')!.getProfile()
+    const profile = projectTypeRegistry.getOrDefault(proj.projectType).getProfile()
     const cmd = command || profile.build
     const outputDir = join(proj.path, profile.buildOutputDir)
     const extraEnv = this.makeBuildEnv(proj)
@@ -654,21 +659,21 @@ export class ProjectService extends EventEmitter {
     const proj = this.getProjectByIndex(idx)
     if (!proj) return []
 
-    const profile =
-      projectTypeRegistry.get(proj.projectType)?.getProfile() ?? projectTypeRegistry.get('npm')!.getProfile()
+    const profile = projectTypeRegistry.getOrDefault(proj.projectType).getProfile()
     const items: BuildArtifact[] = []
 
-    // maven/gradle 多模块：每个子模块都有自己的构建产物目录（target / build），
-    // 仅扫描根目录会漏掉子模块产物，这里递归收集整个目录树
-    if (proj.projectType === 'maven' || proj.projectType === 'gradle') {
-      const dirName = proj.projectType === 'maven' ? 'target' : 'build'
-      for (const dir of this.collectDirsByName(proj.path, dirName, 6)) {
-        items.push({
-          path: dir,
-          display: `${relative(proj.path, dir).split('\\').join('/')}/ 目录`,
-          sizeStr: this.dirSizeStr(dir),
-          isDir: true,
-        })
+    // 多模块类型按目录名递归收集整个目录树，避免漏掉子模块的构建产物
+    const nestedDirs = projectTypeRegistry.get(proj.projectType)?.nestedBuildOutputDirs ?? []
+    if (nestedDirs.length > 0) {
+      for (const dirName of nestedDirs) {
+        for (const dir of this.collectDirsByName(proj.path, dirName, 6)) {
+          items.push({
+            path: dir,
+            display: `${relative(proj.path, dir).split('\\').join('/')}/ 目录`,
+            sizeStr: this.dirSizeStr(dir),
+            isDir: true,
+          })
+        }
       }
     } else {
       const outputDir = join(proj.path, profile.buildOutputDir)
@@ -755,8 +760,7 @@ export class ProjectService extends EventEmitter {
     const proj = this.getProjectByIndex(idx)
     if (!proj) return []
 
-    const profile =
-      projectTypeRegistry.get(proj.projectType)?.getProfile() ?? projectTypeRegistry.get('npm')!.getProfile()
+    const profile = projectTypeRegistry.getOrDefault(proj.projectType).getProfile()
     const result: DependencyDir[] = []
     for (const dirName of profile.cleanDirs) {
       const full = join(proj.path, dirName)
@@ -771,8 +775,7 @@ export class ProjectService extends EventEmitter {
     const proj = this.getProjectByIndex(idx)
     if (!proj) return false
 
-    const profile =
-      projectTypeRegistry.get(proj.projectType)?.getProfile() ?? projectTypeRegistry.get('npm')!.getProfile()
+    const profile = projectTypeRegistry.getOrDefault(proj.projectType).getProfile()
     let allOk = true
     for (const dirName of profile.cleanDirs) {
       const full = join(proj.path, dirName)
@@ -804,22 +807,45 @@ export class ProjectService extends EventEmitter {
     return null
   }
 
-  getContextMenuItems(idx: number): ContextMenuItem[] {
+  getCapabilities(): ProjectTypeCapability[] {
+    return projectTypeRegistry.all().map((provider) => ({
+      type: provider.type,
+      label: provider.label,
+      startMode: provider.startMode,
+      buildStartCommandTemplate: provider.buildStartCommandTemplate,
+      modulePathSeparator: provider.modulePathSeparator,
+      buildCommands: provider.buildCommands,
+      installCommands: provider.installCommands,
+      installFlags: provider.installFlags,
+      installExtraPlaceholder: provider.installExtraPlaceholder,
+      taskCommandTemplate: provider.taskCommandTemplate,
+      defaultBuildCommand: provider.defaultBuildCommand,
+      supportsBuildToolDetection: provider.supportsBuildToolDetection,
+      nestedBuildOutputDirs: provider.nestedBuildOutputDirs,
+      menu: provider.getMenu(),
+    }))
+  }
+
+  getContextMenu(idx: number): ProjectMenu {
     const proj = this.getProjectByIndex(idx)
-    if (!proj) return []
+    if (!proj) return {}
 
-    const provider = projectTypeRegistry.get(proj.projectType)
-    if (!provider?.getContextMenuItems) return []
-
-    // 为路径型菜单项注入项目配置的当前值，末端路径作为显示名
-    const menuItems = provider.getContextMenuItems(proj.path)
-    const homeValue = (home: string): string => (home ? home.split('\\').pop() || '系统默认' : '系统默认')
-    for (const item of menuItems) {
-      if (item.id === 'java') item.value = homeValue(proj.javaHome)
-      else if (item.id === 'maven') item.value = homeValue(proj.mavenHome)
-      else if (item.id === 'tomcat') item.value = homeValue(proj.tomcatHome)
+    const provider = projectTypeRegistry.getOrDefault(proj.projectType)
+    // 在 provider 声明的菜单结构上按 provider 规则注入项目相关动态值
+    const menu = provider.getMenu()
+    if (provider.resolveMenuValue) {
+      const injectValues = (items?: ContextMenuItem[]): void => {
+        if (!items) return
+        for (const item of items) {
+          const value = provider.resolveMenuValue!(item.id, proj)
+          if (value !== null) item.value = value
+        }
+      }
+      injectValues(menu.buildGroup?.items)
+      injectValues(menu.configItems)
+      injectValues(menu.typeActions)
     }
-    return menuItems
+    return menu
   }
 
   async runScript(idx: number, command: string): Promise<boolean> {
@@ -1011,6 +1037,10 @@ export class ProjectService extends EventEmitter {
     if (proj.mavenHome) {
       env.MAVEN_HOME = proj.mavenHome
       extraPaths.push(join(proj.mavenHome, 'bin'))
+    }
+    if (proj.gradleHome) {
+      env.GRADLE_HOME = proj.gradleHome
+      extraPaths.push(join(proj.gradleHome, 'bin'))
     }
     if (proj.tomcatHome) {
       env.CATALINA_HOME = proj.tomcatHome

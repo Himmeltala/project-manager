@@ -85,6 +85,8 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
+import { IPC } from '@/ipc/channels'
+
 import { useError } from '@/composables/useMessage'
 
 const props = defineProps<{
@@ -135,7 +137,7 @@ watch(
 )
 
 async function browseDir() {
-  const dir = await window.electronAPI.invoke('system:selectDirectory')
+  const dir = await window.electronAPI.invoke(IPC.system.selectDirectory)
   if (dir) {
     customDir.value = dir
   }

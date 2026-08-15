@@ -42,6 +42,8 @@
 
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { IPC } from '@/ipc/channels'
+
 import { useProjectStore } from '@/stores/project.store'
 import type { ElInput } from 'element-plus'
 
@@ -105,7 +107,7 @@ async function onScopeChange(val: string) {
     return
   }
   try {
-    await window.electronAPI.invoke('source:switch', val)
+    await window.electronAPI.invoke(IPC.source.switch, val)
     await Promise.all([store.loadProjects(), store.refreshRunningInfo()])
     await store.loadSources()
     emit('scopeChange', val)

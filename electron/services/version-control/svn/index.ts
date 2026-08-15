@@ -9,7 +9,13 @@
 import { exec, execSync } from 'child_process'
 import { existsSync } from 'fs'
 import { join, resolve, dirname } from 'path'
-import type { VcsProvider, VcsUpdateResult, VcsInfo, VcsCheckResult, SettingsGetter } from '@electron/services/version-control/registry'
+import type {
+  VcsProvider,
+  VcsUpdateResult,
+  VcsInfo,
+  VcsCheckResult,
+  SettingsGetter,
+} from '@electron/services/version-control/registry'
 import * as iconv from 'iconv-lite'
 
 const CHANGE_PREFIXES = new Set(['M', 'A', 'D', '!', '?', 'C', '~', 'I', 'R'])

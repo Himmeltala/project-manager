@@ -23,6 +23,9 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { SETTINGS_KEYS } from '@/ipc/keys'
+import { IPC } from '@/ipc/channels'
+
 import { useSystemLogStore } from '@/stores/system-log.store'
 
 const maxLines = ref(5000)
@@ -59,7 +62,7 @@ async function scrollToBottom() {
 const cleanups: (() => void)[] = []
 
 onMounted(async () => {
-  const saved = await window.electronAPI.invoke('settings:get', 'system_log.max_lines')
+  const saved = await window.electronAPI.invoke(IPC.settings.get, SETTINGS_KEYS.systemLogMaxLines)
   if (saved) maxLines.value = saved
 
   // 系统消息（success/error/warning/info/plain）

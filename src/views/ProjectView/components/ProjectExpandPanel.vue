@@ -80,9 +80,11 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { IPC } from '@/ipc/channels'
+
 import { Loading, InfoFilled } from '@element-plus/icons-vue'
 import { getTypeLabel } from '@/utils/mockTypeLabel'
-import { getFlow } from '@/composables/strategies/registry'
+import { getCapabilities } from '@/composables/useProjectType'
 import { useProjectStore } from '@/stores/project.store'
 
 const props = defineProps<{
@@ -110,7 +112,7 @@ let vcsTimer: number | undefined
 const runningCommands = computed(() => store.runningScripts[props.project.path] || [])
 
 const taskRows = computed(() => {
-  const template = getFlow(taskType.value).getTaskCommandTemplate()
+  const template = getCapabilities(taskType.value).taskCommandTemplate
   return Object.entries(taskScripts.value).map(([name, desc]) => {
     const cmd = template.replace('{script}', name)
     return { name, description: desc || '-', command: cmd, isRunning: runningCommands.value.includes(cmd) }
@@ -124,7 +126,7 @@ function isPageVisible(): boolean {
 async function fetchTasks() {
   if (!isPageVisible()) return
   try {
-    const taskInfo = await window.electronAPI.invoke('projectMgr:getTaskList', props.origIdx)
+    const taskInfo = await window.electronAPI.invoke(IPC.projectMgr.getTaskList, props.origIdx)
     if (taskInfo && taskInfo.tasks) {
       taskScripts.value = taskInfo.tasks
       taskType.value = taskInfo.type
@@ -142,7 +144,7 @@ async function fetchTasks() {
 async function fetchVcsInfo() {
   if (!isPageVisible()) return
   try {
-    const revInfo = await window.electronAPI.invoke('vcs:revisionInfo', props.origIdx)
+    const revInfo = await window.electronAPI.invoke(IPC.vcs.revisionInfo, props.origIdx)
     if (revInfo) vcsInfo.value = revInfo
   } catch {
     // ignore
@@ -150,7 +152,7 @@ async function fetchVcsInfo() {
 }
 
 async function executeTask(name: string) {
-  const template = getFlow(taskType.value).getTaskCommandTemplate()
+  const template = getCapabilities(taskType.value).taskCommandTemplate
   const command = template.replace('{script}', name)
   emit('runScript', props.origIdx, command)
   await store.refreshRunningScripts()
@@ -158,9 +160,9 @@ async function executeTask(name: string) {
 }
 
 async function stopTask(name: string) {
-  const template = getFlow(taskType.value).getTaskCommandTemplate()
+  const template = getCapabilities(taskType.value).taskCommandTemplate
   const command = template.replace('{script}', name)
-  await window.electronAPI.invoke('process:stopScript', props.origIdx, command)
+  await window.electronAPI.invoke(IPC.process.stopScript, props.origIdx, command)
   await store.refreshRunningScripts()
   await fetchTasks()
 }

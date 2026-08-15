@@ -7,6 +7,7 @@
  * @Description: 更新检查与下载服务
  */
 import { EventEmitter } from 'events'
+import { SETTINGS_KEYS } from '@/ipc/keys'
 import { mkdirSync, createWriteStream } from 'fs'
 import { join } from 'path'
 import { get } from 'https'
@@ -27,30 +28,30 @@ export class UpdateService extends EventEmitter {
   startupCheck(settings: { get: (key: string, defaultVal?: any) => any; set: (key: string, val: any) => void }): void {
     if (!this.updateUrl) return
 
-    const updateType = settings.get('update.type', '每次启动')
+    const updateType = settings.get(SETTINGS_KEYS.update.type, '每次启动')
     if (updateType === '手动检查') return
 
     const now = Date.now()
     if (updateType === '每次启动') {
-      settings.set('update.last_check', now)
+      settings.set(SETTINGS_KEYS.update.lastCheck, now)
       this.checkUpdateAsync()
       return
     }
 
     const intervalMinutes = this.getIntervalMinutes(settings)
     if (intervalMinutes === null) return
-    const lastCheck = settings.get('update.last_check', 0)
+    const lastCheck = settings.get(SETTINGS_KEYS.update.lastCheck, 0)
     if (now - lastCheck >= intervalMinutes * 60 * 1000) {
-      settings.set('update.last_check', now)
+      settings.set(SETTINGS_KEYS.update.lastCheck, now)
       this.checkUpdateAsync()
     }
   }
 
   getIntervalMinutes(settings: { get: (key: string, defaultVal?: any) => any }): number | null {
-    const updateType = settings.get('update.type', '每次启动')
+    const updateType = settings.get(SETTINGS_KEYS.update.type, '每次启动')
     if (updateType === '手动检查' || updateType === '每次启动') return null
 
-    const freq = settings.get('update.frequency', '每天')
+    const freq = settings.get(SETTINGS_KEYS.update.frequency, '每天')
     const freqMap: Record<string, number> = {
       每天: 1440,
       每三天: 4320,
@@ -58,7 +59,7 @@ export class UpdateService extends EventEmitter {
       每月: 43200,
     }
     if (freq === '自定义') {
-      return Math.max(1440, Math.min(43200, settings.get('update.custom_minutes', 1440)))
+      return Math.max(1440, Math.min(43200, settings.get(SETTINGS_KEYS.update.customMinutes, 1440)))
     }
     return freqMap[freq] || 1440
   }

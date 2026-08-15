@@ -52,31 +52,23 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import type { BackgroundTask } from '@/types/task'
+import { getTaskStatusMeta } from '@/types/task'
 import { useTaskStore } from '@/stores/task.store'
 
 const store = useTaskStore()
 const selectedTaskId = ref<string | null>(null)
 
-const STATUS_CONFIG: Record<
-  string,
-  { text: string; color: string; progress: 'success' | 'exception' | 'warning' | '' }
-> = {
-  pending: { text: '等待中', color: 'var(--el-text-color-secondary)', progress: 'warning' },
-  running: { text: '运行中', color: 'var(--el-color-primary)', progress: '' },
-  completed: { text: '已完成', color: 'var(--el-color-success)', progress: 'success' },
-  failed: { text: '失败', color: 'var(--el-color-danger)', progress: 'exception' },
-}
-
+// 状态显示统一取自共享的任务状态元数据注册表
 function statusColor(status: string): string {
-  return STATUS_CONFIG[status]?.color || 'var(--el-text-color-secondary)'
+  return getTaskStatusMeta(status).color
 }
 
 function statusText(status: string): string {
-  return STATUS_CONFIG[status]?.text || status
+  return getTaskStatusMeta(status).text
 }
 
 function progressStatus(status: string): 'success' | 'exception' | 'warning' | '' {
-  return STATUS_CONFIG[status]?.progress || ''
+  return getTaskStatusMeta(status).progress
 }
 
 function onSelect(t: BackgroundTask) {

@@ -7,6 +7,8 @@
  * @Description: 后台任务状态管理
  */
 import { defineStore } from 'pinia'
+import { IPC } from '@/ipc/channels'
+
 import { ref } from 'vue'
 import type { BackgroundTask } from '@/types/task'
 
@@ -16,11 +18,11 @@ export const useTaskStore = defineStore('task', () => {
   let cleanups: (() => void)[] = []
 
   async function refresh() {
-    tasks.value = await window.electronAPI.invoke('task:getAll')
+    tasks.value = await window.electronAPI.invoke(IPC.task.getAll)
   }
 
   async function clearFinished() {
-    await window.electronAPI.invoke('task:clearFinished')
+    await window.electronAPI.invoke(IPC.task.clearFinished)
     await refresh()
   }
 

@@ -68,6 +68,8 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { IPC } from '@/ipc/channels'
+
 import { ElIcon } from 'element-plus'
 import { Loading } from '@element-plus/icons-vue'
 import { useSuccess, useError } from '@/composables/useMessage'
@@ -94,7 +96,7 @@ watch(
     currentPort.value = null
     newPort.value = null
     try {
-      const result = await window.electronAPI.invoke('portConfig:detect', props.projectPath)
+      const result = await window.electronAPI.invoke(IPC.portConfig.detect, props.projectPath)
       if (result.adapter) {
         adapterLabel.value = result.label || ''
         currentPort.value = result.port
@@ -111,7 +113,7 @@ watch(
 async function save() {
   if (newPort.value === null || newPort.value === currentPort.value) return
   try {
-    const ok = await window.electronAPI.invoke('portConfig:update', props.projectPath, newPort.value)
+    const ok = await window.electronAPI.invoke(IPC.portConfig.update, props.projectPath, newPort.value)
     if (ok) {
       useSuccess(`端口已修改为 ${newPort.value}，重启 dev server 后生效`)
       currentPort.value = newPort.value

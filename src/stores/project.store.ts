@@ -7,10 +7,12 @@
  * @Description: 项目列表与运行状态管理
  */
 import { defineStore } from 'pinia'
+import { IPC } from '@/ipc/channels'
+
 import { ref } from 'vue'
 import type { Project, ProjectSource } from '@/types/project'
 import type { RunningInfo } from '@/types/process'
-import { getFlow } from '@/composables/strategies/registry'
+import { getCapabilities } from '@/composables/useProjectType'
 
 export const useProjectStore = defineStore('project', () => {
   const projects = ref<Project[]>([])
@@ -29,8 +31,8 @@ export const useProjectStore = defineStore('project', () => {
   const searchRegex = ref(false)
 
   async function loadProjects() {
-    const configPath = await window.electronAPI.invoke('project:getDefaultConfigPath')
-    projects.value = await window.electronAPI.invoke('project:load', configPath)
+    const configPath = await window.electronAPI.invoke(IPC.project.getDefaultConfigPath)
+    projects.value = await window.electronAPI.invoke(IPC.project.load, configPath)
     detectBuildTools()
   }
 
@@ -39,12 +41,12 @@ export const useProjectStore = defineStore('project', () => {
    */
   async function detectBuildTools() {
     const npmPaths = projects.value
-      .filter((p) => getFlow(p.projectType).supportsBuildToolDetection)
+      .filter((p) => getCapabilities(p.projectType).supportsBuildToolDetection)
       .map((p) => p.path)
       .filter(Boolean)
     if (npmPaths.length === 0) return
     try {
-      const result = await window.electronAPI.invoke('buildTool:detectBatch', npmPaths)
+      const result = await window.electronAPI.invoke(IPC.buildTool.detectBatch, npmPaths)
       buildTools.value = { ...buildTools.value, ...result }
     } catch {
       // 静默失败
@@ -52,23 +54,23 @@ export const useProjectStore = defineStore('project', () => {
   }
 
   async function loadSources() {
-    sources.value = await window.electronAPI.invoke('source:list', true)
-    activeSource.value = await window.electronAPI.invoke('source:getActive')
+    sources.value = await window.electronAPI.invoke(IPC.source.list, true)
+    activeSource.value = await window.electronAPI.invoke(IPC.source.getActive)
   }
 
   /**
    * 刷新所有项目运行中的脚本状态
    */
   async function refreshRunningScripts() {
-    runningScripts.value = await window.electronAPI.invoke('process:getAllRunningScripts')
+    runningScripts.value = await window.electronAPI.invoke(IPC.process.getAllRunningScripts)
   }
 
   // 刷新项目运行状态与进程信息
   async function refreshRunningInfo() {
     const [info, paths, scripts] = await Promise.all([
-      window.electronAPI.invoke('process:getRunningInfo'),
-      window.electronAPI.invoke('process:getAllRunningPaths'),
-      window.electronAPI.invoke('process:getAllRunningScripts'),
+      window.electronAPI.invoke(IPC.process.getRunningInfo),
+      window.electronAPI.invoke(IPC.process.getAllRunningPaths),
+      window.electronAPI.invoke(IPC.process.getAllRunningScripts),
     ])
     runningInfo.value = info
     runningPaths.value = paths

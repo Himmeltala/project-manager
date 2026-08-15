@@ -56,6 +56,9 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { SETTINGS_KEYS } from '@/ipc/keys'
+import { IPC } from '@/ipc/channels'
+
 import { useRoute } from 'vue-router'
 import { useProjectStore } from '@/stores/project.store'
 import { Files, Tools, Connection } from '@element-plus/icons-vue'
@@ -140,7 +143,7 @@ function onUserActivity() {
 
 // 读取保存的主题，初始化项目和运行状态，监听 IPC 事件
 onMounted(async () => {
-  const savedTheme = await window.electronAPI.invoke('settings:get', 'theme')
+  const savedTheme = await window.electronAPI.invoke(IPC.settings.get, SETTINGS_KEYS.theme)
   if (savedTheme) theme.value = savedTheme
   applyTheme(theme.value)
 

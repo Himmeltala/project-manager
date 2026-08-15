@@ -22,28 +22,13 @@
         :closable="false"
         style="margin-bottom: 12px"
       />
-      <template v-if="isNpmLike">
-        <el-checkbox v-model="legacyPeers" style="margin-bottom: 8px">--legacy-peer-deps</el-checkbox>
-        <br />
-        <el-checkbox v-model="forceFlag" style="margin-bottom: 8px">--force</el-checkbox>
-      </template>
-      <template v-else-if="isMaven">
-        <el-checkbox v-model="skipTests" style="margin-bottom: 8px">-DskipTests</el-checkbox>
-        <br />
-        <el-checkbox v-model="updateSnapshots" style="margin-bottom: 8px">-U (强制更新快照)</el-checkbox>
-      </template>
-      <template v-else>
-        <el-checkbox v-model="skipTests" style="margin-bottom: 8px">-x test</el-checkbox>
-        <br />
-        <el-checkbox v-model="updateSnapshots" style="margin-bottom: 8px"
-          >--refresh-dependencies (强制刷新依赖)</el-checkbox
-        >
+      <!-- 安装选项复选框组，由类型能力声明驱动 -->
+      <template v-for="(flag, i) in installFlagGroups" :key="flag.value">
+        <el-checkbox v-model="flagChecked[flag.value]" style="margin-bottom: 8px">{{ flag.label }}</el-checkbox>
+        <br v-if="i < installFlagGroups.length - 1" />
       </template>
       <el-form-item label="额外参数" style="margin-top: 8px; margin-bottom: 0">
-        <el-input
-          v-model="extraFlags"
-          :placeholder="isNpmLike ? '如: --prefer-offline --no-audit' : '如: -Dmaven.test.skip=true -o'"
-        />
+        <el-input v-model="extraFlags" :placeholder="installExtraPlaceholder" />
       </el-form-item>
     </el-form>
     <template #footer>
@@ -55,7 +40,7 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
-import { getFlow } from '@/composables/strategies/registry'
+import { getCapabilities } from '@/composables/useProjectType'
 
 const props = defineProps<{
   visible: boolean
@@ -68,26 +53,23 @@ const emit = defineEmits<{
   (e: 'confirm', command: string): void
 }>()
 
-const legacyPeers = ref(true)
-const forceFlag = ref(false)
-const skipTests = ref(true)
-const updateSnapshots = ref(false)
 const extraFlags = ref('')
+// 安装选项复选框的勾选状态，按参数值索引
+const flagChecked = ref<Record<string, boolean>>({})
 
-// 是否为 npm/pnpm 类型（控制安装选项复选框的显示）
-const isNpmLike = computed(() => {
-  const flow = getFlow(props.projectType)
-  return flow.type === 'npm' || flow.type === 'pnpm'
-})
+// 当前项目的类型能力
+const capability = computed(() => getCapabilities(props.projectType))
 
-// 是否 Maven（非 npm 类型中，Maven 与 Gradle 的追加参数不同）
-const isMaven = computed(() => getFlow(props.projectType).type === 'maven')
+// 安装选项复选框组（由类型能力声明）
+const installFlagGroups = computed(() => capability.value.installFlags)
 
-// 当前项目的安装依赖命令列表，由 flow adapter 提供，默认选中第一项
+// 额外参数输入框提示（由类型能力声明）
+const installExtraPlaceholder = computed(() => capability.value.installExtraPlaceholder)
+
+// 当前项目的安装依赖命令列表，默认选中第一项
 const installCommands = computed(() => {
-  const flow = getFlow(props.projectType)
-  const cmds = flow.installCommands
-  return cmds.length > 0 ? cmds : [flow.defaultBuildCommand]
+  const cmds = capability.value.installCommands
+  return cmds.length > 0 ? cmds : [capability.value.defaultBuildCommand]
 })
 
 const selectedCommand = ref('')
@@ -96,26 +78,22 @@ watch(
   () => props.visible,
   (v) => {
     if (!v) return
-    legacyPeers.value = true
-    forceFlag.value = false
-    skipTests.value = true
-    updateSnapshots.value = false
+    // 按能力声明的默认值初始化复选框状态
+    const checked: Record<string, boolean> = {}
+    for (const flag of capability.value.installFlags) {
+      checked[flag.value] = flag.default ?? false
+    }
+    flagChecked.value = checked
     extraFlags.value = ''
-    selectedCommand.value = installCommands.value[0] || getFlow(props.projectType).defaultBuildCommand
+    selectedCommand.value = installCommands.value[0] || capability.value.defaultBuildCommand
   },
 )
 
 function confirm() {
+  // 收集勾选的安装参数，复选框声明完全由类型能力驱动
   const flags: string[] = []
-  if (isNpmLike.value) {
-    if (legacyPeers.value) flags.push('--legacy-peer-deps')
-    if (forceFlag.value) flags.push('--force')
-  } else if (isMaven.value) {
-    if (skipTests.value) flags.push('-DskipTests')
-    if (updateSnapshots.value) flags.push('-U')
-  } else {
-    if (skipTests.value) flags.push('-x test')
-    if (updateSnapshots.value) flags.push('--refresh-dependencies')
+  for (const flag of capability.value.installFlags) {
+    if (flagChecked.value[flag.value]) flags.push(flag.value)
   }
   const extra = extraFlags.value.trim()
   if (extra) flags.push(extra)

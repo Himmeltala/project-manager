@@ -62,8 +62,11 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
+import { STORE_KEYS } from '@/ipc/keys'
+import { IPC } from '@/ipc/channels'
+
 import { getTypeLabel } from '@/utils/mockTypeLabel'
-import { getFlow } from '@/composables/strategies/registry'
+import { getCapabilities } from '@/composables/useProjectType'
 
 const props = defineProps<{
   visible: boolean
@@ -87,7 +90,7 @@ const zipNames = ref<string[]>([])
 
 const typeLabel = computed(() => getTypeLabel(props.projectType))
 
-const fallbackCmd = computed(() => getFlow(props.projectType).defaultBuildCommand)
+const fallbackCmd = computed(() => getCapabilities(props.projectType).defaultBuildCommand)
 
 const buildOptions = computed(() => {
   const opts: string[] = []
@@ -95,7 +98,7 @@ const buildOptions = computed(() => {
     opts.push(...props.buildCommands)
   } else if (props.scripts && Object.keys(props.scripts).length > 0) {
     // 构建脚本命令按项目类型的命令模板生成，避免硬编码 npm 前缀
-    const template = getFlow(props.projectType).getTaskCommandTemplate()
+    const template = getCapabilities(props.projectType).taskCommandTemplate
     for (const name of Object.keys(props.scripts).filter((s) => /build/i.test(s))) {
       opts.push(template.replace('{script}', name))
     }
@@ -108,8 +111,8 @@ const buildOptions = computed(() => {
 async function loadSavedNames() {
   try {
     const [names, zips] = await Promise.all([
-      window.electronAPI.invoke('store:get', 'build_names'),
-      window.electronAPI.invoke('store:get', 'build_zip_names'),
+      window.electronAPI.invoke(IPC.store.get, STORE_KEYS.buildNames),
+      window.electronAPI.invoke(IPC.store.get, STORE_KEYS.buildZipNames),
     ])
     savedNames.value = Array.isArray(names) ? names : []
     zipNames.value = Array.isArray(zips) ? zips : []
@@ -126,7 +129,7 @@ async function saveName(name: string) {
   if (list.length > 50) list.length = 50
   savedNames.value = list
   try {
-    await window.electronAPI.invoke('store:set', 'build_names', list)
+    await window.electronAPI.invoke(IPC.store.set, STORE_KEYS.buildNames, list)
   } catch {
     // ignore
   }
@@ -139,7 +142,7 @@ async function saveZipName(name: string) {
   if (list.length > 50) list.length = 50
   zipNames.value = list
   try {
-    await window.electronAPI.invoke('store:set', 'build_zip_names', list)
+    await window.electronAPI.invoke(IPC.store.set, STORE_KEYS.buildZipNames, list)
   } catch {
     // ignore
   }

@@ -2,11 +2,11 @@
  * @Author: zhengrenfu
  * @Date: 2026-07-14
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-08-10
+ * @LastEditTime: 2026-08-15
  * @FilePath: \src\utils\mockTypeLabel.ts
- * @Description: 项目类型标签映射 — 通过 ProjectFlowAdapter 注册表获取类型显示名称
+ * @Description: 项目类型标签映射 — 通过后端类型能力获取类型显示名称
  */
-import { getFlow } from '@/composables/strategies/registry'
+import { getCapabilities } from '@/composables/useProjectType'
 
 /**
  * 根据项目类型获取对应的显示标签
@@ -14,5 +14,5 @@ import { getFlow } from '@/composables/strategies/registry'
  * @returns {string} 显示标签，未匹配时返回原值
  */
 export function getTypeLabel(type: string): string {
-  return getFlow(type).label || type
+  return getCapabilities(type).label || type
 }

@@ -18,6 +18,9 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { SETTINGS_KEYS } from '@/ipc/keys'
+import { IPC } from '@/ipc/channels'
+
 import ProcessOutputPanel from '@/components/ProcessOutputPanel.vue'
 import AppMessagePanel from '@/components/AppMessagePanel.vue'
 import NotificationList from '@/views/ProjectView/components/NotificationList.vue'
@@ -42,7 +45,7 @@ const panelHeight = ref(150)
 let dragState: { startY: number; startH: number } | null = null
 
 onMounted(async () => {
-  const saved = await window.electronAPI.invoke('settings:get', 'bottom_panel.height')
+  const saved = await window.electronAPI.invoke(IPC.settings.get, SETTINGS_KEYS.bottomPanelHeight)
   if (saved) panelHeight.value = Number(saved) || 200
 })
 
@@ -62,7 +65,7 @@ async function onDragEnd() {
   dragState = null
   document.removeEventListener('mousemove', onDragMove)
   document.removeEventListener('mouseup', onDragEnd)
-  await window.electronAPI.invoke('settings:set', 'bottom_panel.height', panelHeight.value)
+  await window.electronAPI.invoke(IPC.settings.set, SETTINGS_KEYS.bottomPanelHeight, panelHeight.value)
 }
 
 onUnmounted(() => {

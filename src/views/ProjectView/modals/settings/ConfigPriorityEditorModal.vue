@@ -61,6 +61,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { IPC } from '@/ipc/channels'
+
 import { ArrowUp, ArrowDown, ArrowRight, Delete } from '@element-plus/icons-vue'
 
 interface ToolSection {
@@ -122,7 +124,7 @@ onMounted(async () => {
 async function load() {
   let saved: Record<string, string[]> = {}
   try {
-    const raw: string = await window.electronAPI.invoke('settings:get', props.settingKey)
+    const raw: string = await window.electronAPI.invoke(IPC.settings.get, props.settingKey)
     if (raw) saved = JSON.parse(raw)
   } catch {
     // ignore
@@ -147,7 +149,7 @@ async function save() {
       data[tool.name] = tool.files
     }
   }
-  await window.electronAPI.invoke('settings:set', props.settingKey, JSON.stringify(data))
+  await window.electronAPI.invoke(IPC.settings.set, props.settingKey, JSON.stringify(data))
 }
 
 function isCustomized(toolName: string): boolean {

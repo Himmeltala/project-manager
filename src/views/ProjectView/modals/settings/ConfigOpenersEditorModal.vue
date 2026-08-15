@@ -35,6 +35,8 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { IPC } from '@/ipc/channels'
+
 import { ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 
 interface ConfigOpener {
@@ -56,7 +58,7 @@ onMounted(async () => {
 
 async function load() {
   try {
-    const raw: string = await window.electronAPI.invoke('settings:get', props.settingKey)
+    const raw: string = await window.electronAPI.invoke(IPC.settings.get, props.settingKey)
     if (raw) {
       entries.value = JSON.parse(raw)
     } else {
@@ -70,7 +72,7 @@ async function load() {
 async function save() {
   try {
     const json = JSON.stringify(entries.value, null, 2)
-    await window.electronAPI.invoke('settings:set', props.settingKey, json)
+    await window.electronAPI.invoke(IPC.settings.set, props.settingKey, json)
     error.value = ''
   } catch {
     error.value = '保存失败'

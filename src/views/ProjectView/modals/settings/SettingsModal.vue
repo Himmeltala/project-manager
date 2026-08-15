@@ -89,6 +89,8 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { IPC } from '@/ipc/channels'
+
 import { useSuccess } from '@/composables/useMessage'
 import TerminalEntriesEditorModal from '@/views/ProjectView/modals/system/TerminalEntriesEditorModal.vue'
 import ConfigOpenersEditorModal from '@/views/ProjectView/modals/settings/ConfigOpenersEditorModal.vue'
@@ -115,7 +117,7 @@ function isVisible(setting: any): boolean {
  */
 async function onSelectCategory(key: string) {
   activeCategory.value = key
-  await window.electronAPI.invoke('store:set', STORE_KEY, key)
+  await window.electronAPI.invoke(IPC.store.set, STORE_KEY, key)
 }
 
 watch(
@@ -124,7 +126,7 @@ watch(
     if (v) {
       await loadSchema()
       // 恢复上一次打开的菜单
-      const saved = await window.electronAPI.invoke('store:get', STORE_KEY)
+      const saved = await window.electronAPI.invoke(IPC.store.get, STORE_KEY)
       if (saved && categories.value.some((c) => c.key === saved)) {
         activeCategory.value = saved
       }
@@ -133,11 +135,11 @@ watch(
 )
 
 async function loadSchema() {
-  categories.value = await window.electronAPI.invoke('settings:getSchema')
+  categories.value = await window.electronAPI.invoke(IPC.settings.getSchema)
   for (const cat of categories.value) {
     for (const group of cat.groups) {
       for (const setting of group.settings) {
-        const val = await window.electronAPI.invoke('settings:get', setting.key)
+        const val = await window.electronAPI.invoke(IPC.settings.get, setting.key)
         settingValues.value[setting.key] = val !== undefined ? val : setting.default
       }
     }
@@ -145,7 +147,7 @@ async function loadSchema() {
 }
 
 async function onChange(key: string, value: any) {
-  await window.electronAPI.invoke('settings:set', key, value)
+  await window.electronAPI.invoke(IPC.settings.set, key, value)
   if (key.startsWith('scheduled_checks.')) {
     await refreshVcsTimers()
   }
@@ -153,16 +155,16 @@ async function onChange(key: string, value: any) {
 }
 
 async function refreshVcsTimers() {
-  await window.electronAPI.invoke('vcs:stopChecks')
+  await window.electronAPI.invoke(IPC.vcs.stopChecks)
   const remoteEnabled = settingValues.value['scheduled_checks.remote_enabled']
   const localEnabled = settingValues.value['scheduled_checks.local_enabled']
   if (remoteEnabled) {
     const interval = settingValues.value['scheduled_checks.remote_interval_minutes'] || 30
-    await window.electronAPI.invoke('vcs:startRemoteCheck', interval)
+    await window.electronAPI.invoke(IPC.vcs.startRemoteCheck, interval)
   }
   if (localEnabled) {
     const interval = settingValues.value['scheduled_checks.local_interval_minutes'] || 15
-    await window.electronAPI.invoke('vcs:startLocalCheck', interval)
+    await window.electronAPI.invoke(IPC.vcs.startLocalCheck, interval)
   }
 }
 </script>
