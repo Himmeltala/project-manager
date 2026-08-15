@@ -2,20 +2,20 @@
  * @Author: zhengrenfu
  * @Date: 2026-07-14
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-08-10
- * @FilePath: \src\views\ProjectView\modals\InstallModal.vue
- * @Description: 安装依赖对话框 — 通过 ProjectFlowAdapter 注册表驱动命令列表和选项
+ * @LastEditTime: 2026-08-15 14:39:49
+ * @FilePath: /src/views/ProjectView/modals/project/InstallModal.vue
+ * @Description: 安装依赖对话框
 -->
 <template>
   <el-dialog
     :model-value="visible"
     @update:model-value="emit('close')"
     :title="`安装依赖: ${projectName}`"
-    width="500"
+    width="30vw"
     top="2vh"
     :close-on-click-modal="false"
   >
-    <el-form label-width="70px">
+    <el-form label-width="160px">
       <el-alert
         :title="`将对 [${projectName}] 执行 ${selectedCommand}`"
         type="info"
@@ -39,7 +39,7 @@
           >--refresh-dependencies (强制刷新依赖)</el-checkbox
         >
       </template>
-      <el-form-item label="额外参数:" style="margin-top: 8px; margin-bottom: 0">
+      <el-form-item label="额外参数" style="margin-top: 8px; margin-bottom: 0">
         <el-input
           v-model="extraFlags"
           :placeholder="isNpmLike ? '如: --prefer-offline --no-audit' : '如: -Dmaven.test.skip=true -o'"

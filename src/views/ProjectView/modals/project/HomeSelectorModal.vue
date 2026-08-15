@@ -2,8 +2,8 @@
  * @Author: zhengrenfu
  * @Date: 2026-07-14
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-07-25
- * @FilePath: \src\views\ProjectView\modals\HomeSelectorModal.vue
+ * @LastEditTime: 2026-08-15 14:43:04
+ * @FilePath: /src/views/ProjectView/modals/project/HomeSelectorModal.vue
  * @Description: Java/Maven/Tomcat 版本选择对话框
 -->
 <template>
@@ -11,18 +11,18 @@
     :model-value="visible"
     @update:model-value="emit('close')"
     :title="dialogTitle"
-    width="500"
+    width="30vw"
     top="2vh"
     :close-on-click-modal="false"
   >
     <div style="font-weight: bold; color: var(--el-color-primary); margin-bottom: 8px">当前: {{ currentLabel }}</div>
-    <el-radio-group v-model="selectedPath" style="display: flex; flex-direction: column; gap: 6px">
+    <el-radio-group v-model="selectedPath">
       <el-radio value="">系统默认</el-radio>
       <el-radio v-for="h in homes" :key="h.path" :value="h.path">{{ h.label }} ({{ h.path }})</el-radio>
     </el-radio-group>
     <div style="display: flex; gap: 8px; margin-top: 12px">
       <el-input v-model="customPath" placeholder="或手动输入路径..." readonly />
-      <el-button plain size="small" @click="browse">浏览...</el-button>
+      <el-button plain @click="browse">浏览...</el-button>
     </div>
     <template #footer>
       <el-button plain size="small" type="primary" @click="confirm">确定</el-button>
