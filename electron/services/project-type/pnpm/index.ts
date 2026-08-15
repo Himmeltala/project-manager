@@ -42,7 +42,9 @@ export class PnpmProvider implements ProjectTypeProvider {
   }
 
   getTaskList(path: string) {
-    return getTaskList(path)
+    // npm/tasks 返回的任务类型固定为 npm，此处改写为 pnpm，保证前端命令模板前缀正确
+    const info = getTaskList(path)
+    return info ? { ...info, type: 'pnpm' } : info
   }
 
   getContextMenuItems(): ContextMenuItem[] {

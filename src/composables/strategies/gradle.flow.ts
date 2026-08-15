@@ -2,7 +2,7 @@
  * @Author: zhengrenfu
  * @Date: 2026-08-09
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-08-10
+ * @LastEditTime: 2026-08-15
  * @FilePath: \src\composables\strategies\gradle.flow.ts
  * @Description: Gradle 项目流程策略
  */
@@ -22,11 +22,24 @@ export const gradleFlow: ProjectFlowAdapter = {
 
   installCommands: ['gradle build', 'gradle clean build'],
 
-  extraActions: [{ key: 'java', label: 'Java 版本' }],
-
   supportsBuildToolDetection: false,
 
   getTaskCommandTemplate: (taskName?: string) => `gradle ${taskName || '{script}'}`,
 
   defaultBuildCommand: 'gradle build -x test',
+
+  menu: {
+    buildGroup: {
+      key: 'build',
+      label: '构建',
+      items: [
+        { action: 'install', label: '安装依赖' },
+        { action: 'clean', label: '清理构建产物' },
+      ],
+    },
+    typeActions: [
+      { action: 'java', label: 'Java 版本' },
+      { action: 'gradle', label: 'Gradle 版本' },
+    ],
+  },
 }

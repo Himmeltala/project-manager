@@ -7,7 +7,7 @@
  * @Description: 项目配置与相关数据结构定义
  */
 
-/** Project config, each item in config.json */
+/* Project config, each item in config.json */
 export interface Project {
   name: string
   path: string
@@ -18,7 +18,7 @@ export interface Project {
   tomcatWarName: string
 }
 
-/** Project source config for switching project lists */
+/* Project source config for switching project lists */
 export interface ProjectSource {
   name: string
   configPath: string
@@ -28,19 +28,19 @@ export interface ProjectSource {
   rootDir?: string
 }
 
-/** 右键菜单项 */
+/* 右键菜单项 */
 export interface ContextMenuItem {
-  /** 动作标识，与 handleAction 的 action 参数一致 */
+  /* 动作标识，与 handleAction 的 action 参数一致 */
   id: string
-  /** 显示文本 */
+  /* 显示文本 */
   label: string
-  /** 动态值（如当前版本号），可为 null */
+  /* 动态值（如当前版本号），可为 null */
   value?: string | null
-  /** 是否禁用 */
+  /* 是否禁用 */
   disabled?: boolean
 }
 
-/** Command profile by projectType (npm/maven etc.) */
+/* Command profile by projectType (npm/maven etc.) */
 export interface CommandProfile {
   start: string
   build: string
@@ -52,7 +52,7 @@ export interface CommandProfile {
   taskListKey: string | null
 }
 
-/** Task list parsed from pom.xml / package.json */
+/* Task list parsed from pom.xml / package.json */
 export interface TaskInfo {
   type: string
   tasks: Record<string, string>
@@ -61,7 +61,7 @@ export interface TaskInfo {
   taskListKey?: string | null
 }
 
-/** Build artifact info for clean list */
+/* Build artifact info for clean list */
 export interface BuildArtifact {
   path: string
   display: string
@@ -69,7 +69,7 @@ export interface BuildArtifact {
   isDir: boolean
 }
 
-/** Dependency directory (node_modules etc.) */
+/* Dependency directory (node_modules etc.) */
 export interface DependencyDir {
   name: string
   path: string

@@ -11,14 +11,14 @@ import { join, dirname } from 'path'
 import type { RunnableModule } from '@electron/services/project-type/interface'
 import { javaFrameworkRegistry } from '@electron/services/project-type/maven/framework/index'
 
-/** 通过 Java 框架注册表检测子模块是否为可运行的 Spring Boot 项目 */
+/* 通过 Java 框架注册表检测子模块是否为可运行的 Spring Boot 项目 */
 function hasSpringBootPlugin(pomPath: string): boolean {
   const dir = dirname(pomPath)
   const framework = javaFrameworkRegistry.detect(dir)
   return framework?.name === 'spring-boot'
 }
 
-/** 解析 <modules> 子模块列表 */
+/* 解析 <modules> 子模块列表 */
 function parseModules(pomPath: string): string[] {
   try {
     const content = readFileSync(pomPath, 'utf-8')
@@ -34,7 +34,7 @@ function parseModules(pomPath: string): string[] {
   }
 }
 
-/** 解析 artifactId（跳过 <parent> 块内的） */
+/* 解析 artifactId（跳过 <parent> 块内的） */
 function parseArtifactId(pomPath: string): string {
   try {
     const content = readFileSync(pomPath, 'utf-8')
@@ -47,7 +47,7 @@ function parseArtifactId(pomPath: string): string {
   }
 }
 
-/** 检查是否为聚合 POM */
+/* 检查是否为聚合 POM */
 function isAggregatorPom(pomPath: string): boolean {
   try {
     const content = readFileSync(pomPath, 'utf-8')

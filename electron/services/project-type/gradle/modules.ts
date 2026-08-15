@@ -7,7 +7,7 @@ import { join } from 'path'
 import type { RunnableModule } from '@electron/services/project-type/interface'
 import { javaFrameworkRegistry } from '@electron/services/project-type/maven/framework/index'
 
-/** 通过 Java 框架注册表检测子项目是否为 Spring Boot 项目 */
+/* 通过 Java 框架注册表检测子项目是否为 Spring Boot 项目 */
 function hasSpringBootPlugin(projectPath: string): boolean {
   const framework = javaFrameworkRegistry.detect(projectPath)
   return framework?.name === 'spring-boot'

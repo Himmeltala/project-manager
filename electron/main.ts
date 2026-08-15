@@ -35,7 +35,7 @@ import { detectAndReadProxies, updateProxyTargets } from '@electron/services/pro
 import { projectTypeRegistry } from '@electron/services/project-type/registry'
 // #endregion
 
-/** ESM 下 __dirname 不可用，通过 import.meta.url 派生 */
+/* ESM 下 __dirname 不可用，通过 import.meta.url 派生 */
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
 // 开发环境用项目根目录，打包后用 resources 目录
@@ -296,7 +296,7 @@ function registerIpc(): void {
   ipcMain.handle('project:getDefaultConfigPath', () => sourceMgr.getActiveConfigPath())
   ipcMain.handle('project:detectConfigFile', (_e, projectPath: string) => detectConfigFilePath(projectPath, settings))
 
-  /** 获取 Maven/Gradle 多模块项目中可运行的子模块列表（按路径解析，避免"所有源"模式序号错位） */
+  /* 获取 Maven/Gradle 多模块项目中可运行的子模块列表（按路径解析，避免"所有源"模式序号错位） */
   ipcMain.handle('project:getRunnableModules', (_e, path: string, type: string) => {
     if (!path) return []
     const provider = projectTypeRegistry.get(type)

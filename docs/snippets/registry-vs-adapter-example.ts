@@ -34,7 +34,7 @@ class LoggerRegistry {
     this.providers.set(p.name, p)
   }
 
-  /** 根据配置选一个 */
+  /* 根据配置选一个 */
   get(name: string): Logger | undefined {
     return this.providers.get(name)
   }
@@ -115,7 +115,7 @@ class PaymentRegistry {
     this.adapters.set(a.name, a)
   }
 
-  /** 根据用户选择的支付方式返回对应适配器 */
+  /* 根据用户选择的支付方式返回对应适配器 */
   get(name: string): PaymentAdapter | undefined {
     return this.adapters.get(name)
   }

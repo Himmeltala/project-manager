@@ -13,7 +13,7 @@ import { NuxtFramework } from '@electron/services/project-type/npm/framework/nux
 import { VueFramework } from '@electron/services/project-type/npm/framework/vue'
 import { ReactFramework } from '@electron/services/project-type/npm/framework/react'
 
-/** 前端框架注册表 */
+/* 前端框架注册表 */
 class FrameworkRegistryImpl {
   private detectors: FrameworkDetector[] = []
 
@@ -34,7 +34,7 @@ class FrameworkRegistryImpl {
   }
 }
 
-/** 全局单例 */
+/* 全局单例 */
 export const frameworkRegistry = new FrameworkRegistryImpl()
 
 // 按检测精确度注册（高优先级在前：有独立配置文件的优先于仅通过依赖检测的）

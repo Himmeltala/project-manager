@@ -12,10 +12,14 @@ import { VueCliAdapter } from '@electron/services/project-type/npm/proxy-config/
 import { ViteAdapter } from '@electron/services/project-type/npm/proxy-config/vite'
 import { WebpackAdapter } from '@electron/services/project-type/npm/proxy-config/webpack'
 import { RspackAdapter } from '@electron/services/project-type/npm/proxy-config/rspack'
-import { parseProxyConfig, parseProxyLines, applySingleChange } from '@electron/services/project-type/npm/proxy-config/parser'
+import {
+  parseProxyConfig,
+  parseProxyLines,
+  applySingleChange,
+} from '@electron/services/project-type/npm/proxy-config/parser'
 import type { ProxyEntry } from '@electron/services/project-type/npm/proxy-config/parser'
 
-/** Proxy 代理配置适配器接口 */
+/* Proxy 代理配置适配器接口 */
 export interface ProxyConfigAdapter {
   readonly name: string
   readonly label: string
@@ -38,11 +42,11 @@ export interface ProxyConfigAdapter {
   } | null
 }
 
-/** 代理配置注册表 */
+/* 代理配置注册表 */
 class ProxyConfigRegistryImpl {
   private adapters: ProxyConfigAdapter[] = []
 
-  /** 注册适配器，按注册顺序决定检测优先级 */
+  /* 注册适配器，按注册顺序决定检测优先级 */
   register(adapter: ProxyConfigAdapter): void {
     this.adapters.push(adapter)
   }
@@ -62,7 +66,7 @@ class ProxyConfigRegistryImpl {
   }
 }
 
-/** 全局单例 */
+/* 全局单例 */
 export const proxyConfigRegistry = new ProxyConfigRegistryImpl()
 
 // 注册内置适配器（优先级：vue-cli > vite > webpack > rspack）
@@ -71,7 +75,7 @@ proxyConfigRegistry.register(new ViteAdapter())
 proxyConfigRegistry.register(new WebpackAdapter())
 proxyConfigRegistry.register(new RspackAdapter())
 
-/** .env 文件查找路径 */
+/* .env 文件查找路径 */
 const ENV_FILES = ['.env.development', '.env']
 
 function findEnvVars(projectPath: string): Record<string, string> | null {

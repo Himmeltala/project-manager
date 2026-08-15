@@ -19,7 +19,7 @@ export class SourceManager extends EventEmitter {
   private sourcesPath: string
   private sources: Map<string, ProjectSource> = new Map()
   private active: string = 'default'
-  /** 项目数缓存，懒加载 */
+  /* 项目数缓存，懒加载 */
   private projectCountCache: Map<string, number> = new Map()
 
   constructor(sourcesPath: string) {
@@ -28,12 +28,12 @@ export class SourceManager extends EventEmitter {
     this.load()
   }
 
-  /** 清除项目数缓存 */
+  /* 清除项目数缓存 */
   private clearProjectCountCache(): void {
     this.projectCountCache.clear()
   }
 
-  /** 读取源配置文件的非空项目数 */
+  /* 读取源配置文件的非空项目数 */
   private getProjectCount(configPath: string): number {
     if (this.projectCountCache.has(configPath)) return this.projectCountCache.get(configPath)!
     let count = 0

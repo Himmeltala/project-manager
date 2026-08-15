@@ -8,7 +8,7 @@
  */
 import type { BuildToolAdapter } from '@electron/services/project-type/npm/build-tool/index'
 
-/** 检查依赖中是否包含 webpack */
+/* 检查依赖中是否包含 webpack */
 function hasWebpackDep(pkg: Record<string, any>): boolean {
   const deps = { ...pkg.dependencies, ...pkg.devDependencies }
   return !!(deps as Record<string, string>)['webpack']

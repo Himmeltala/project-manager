@@ -16,12 +16,12 @@ import { RollupAdapter } from '@electron/services/project-type/npm/build-tool/ro
 import { ParcelAdapter } from '@electron/services/project-type/npm/build-tool/parcel'
 import type { AppSettings } from '@electron/services/core/settings.service'
 
-/** 构建工具适配器接口 */
+/* 构建工具适配器接口 */
 export interface BuildToolAdapter {
   readonly name: string
   readonly label: string
 
-  /** 此构建工具对应的配置文件列表（按优先级排序），如 ['vite.config.ts', 'vite.config.js'] */
+  /* 此构建工具对应的配置文件列表（按优先级排序），如 ['vite.config.ts', 'vite.config.js'] */
   readonly configFiles: string[]
 
   /**
@@ -32,11 +32,11 @@ export interface BuildToolAdapter {
   detect(pkg: Record<string, any> | null, rootFiles: string[]): boolean
 }
 
-/** 构建工具注册表 */
+/* 构建工具注册表 */
 class BuildToolRegistryImpl {
   private adapters: BuildToolAdapter[] = []
 
-  /** 注册适配器，按注册顺序决定检测优先级 */
+  /* 注册适配器，按注册顺序决定检测优先级 */
   register(adapter: BuildToolAdapter): void {
     this.adapters.push(adapter)
   }
@@ -45,7 +45,7 @@ class BuildToolRegistryImpl {
     return this.adapters
   }
 
-  /** 遍历适配器检测，返回首个匹配项，无匹配返回 null */
+  /* 遍历适配器检测，返回首个匹配项，无匹配返回 null */
   detect(pkg: Record<string, any> | null, rootFiles: string[]): string | null {
     for (const adapter of this.adapters) {
       if (adapter.detect(pkg, rootFiles)) {
@@ -56,7 +56,7 @@ class BuildToolRegistryImpl {
   }
 }
 
-/** 全局单例 */
+/* 全局单例 */
 export const buildToolRegistry = new BuildToolRegistryImpl()
 
 // 注册内置适配器（按优先级：vue-cli > webpack > vite > rspack > rollup > parcel）

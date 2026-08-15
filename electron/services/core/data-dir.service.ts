@@ -14,7 +14,7 @@ import { execSync } from 'child_process'
 import { fileURLToPath } from 'url'
 import { homedir } from 'os'
 
-/** ESM 下 __dirname 不可用，通过 import.meta.url 派生 */
+/* ESM 下 __dirname 不可用，通过 import.meta.url 派生 */
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
 // data-dir.service 在 dist-electron/services/ 下，项目根是再往上两级
