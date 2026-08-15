@@ -12,6 +12,22 @@ import { join, basename, dirname, relative } from 'path'
 import { EventEmitter } from 'events'
 import { execSync, exec, spawn } from 'child_process'
 import * as iconv from 'iconv-lite'
+import type {
+  Project,
+  BuildArtifact,
+  DependencyDir,
+  TaskInfo,
+  ContextMenuItem,
+  ProjectMenu,
+  ProjectTypeCapability,
+} from '@/types/project'
+import type { RunningInfo, MigrationParams } from '@/types/process'
+import type { ManagedProcess } from '@electron/services/runtime/process-manager.service'
+import { ProcessManager } from '@electron/services/runtime/process-manager.service'
+import { projectTypeRegistry } from '@electron/services/project-type/registry'
+import { javaFrameworkRegistry } from '@electron/services/project-type/maven/framework/index'
+import { TomcatFramework } from '@electron/services/project-type/maven/framework/tomcat'
+import type { VcsUpdateResult, VcsRegistryImpl, VcsProvider } from '@electron/services/version-control/registry'
 
 /* 模块级编码缓存，一旦检测缓存 */
 let cachedSystemEncoding: string | null = null
@@ -137,23 +153,6 @@ function execAsyncStream(
     })
   })
 }
-import type {
-  Project,
-  BuildArtifact,
-  DependencyDir,
-  TaskInfo,
-  ContextMenuItem,
-  ProjectMenu,
-  ProjectTypeCapability,
-} from '@/types/project'
-import type { RunningInfo, MigrationParams } from '@/types/process'
-import type { ManagedProcess } from '@electron/services/runtime/process-manager.service'
-import { ProcessManager } from '@electron/services/runtime/process-manager.service'
-import { projectTypeRegistry } from '@electron/services/project-type/registry'
-import { javaFrameworkRegistry } from '@electron/services/project-type/maven/framework/index'
-import { TomcatFramework } from '@electron/services/project-type/maven/framework/tomcat'
-import type { VcsUpdateResult, VcsRegistryImpl, VcsProvider } from '@electron/services/version-control/registry'
-
 export class ProjectService extends EventEmitter {
   // #region Init
   private processMgr: ProcessManager
