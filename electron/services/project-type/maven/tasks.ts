@@ -5,7 +5,7 @@ import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
 import type { TaskInfo } from '@/types/project'
 
-/** Maven 标准生命周期（始终可用） */
+/* Maven 标准生命周期（始终可用） */
 const LIFECYCLE_TASKS: Record<string, string> = {
   clean: '清理构建产物',
   compile: '编译项目',
@@ -16,7 +16,7 @@ const LIFECYCLE_TASKS: Record<string, string> = {
   site: '生成站点',
 }
 
-/** 常见插件 goal → 显示名 */
+/* 常见插件 goal 显示名 */
 const KNOWN_PLUGINS: Record<string, string> = {
   'spring-boot:run': '运行 Spring Boot',
   'docker:build': '构建 Docker 镜像',

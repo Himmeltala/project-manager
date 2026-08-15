@@ -7,10 +7,10 @@
  * @Description: 后台任务数据结构定义
  */
 
-/** Background task status (build, update, etc.) */
+/* Background task status (build, update, etc.) */
 export type TaskStatus = 'pending' | 'running' | 'completed' | 'failed'
 
-/** Full background task info */
+/* Full background task info */
 export interface BackgroundTask {
   taskId: string
   name: string
@@ -23,5 +23,5 @@ export interface BackgroundTask {
   finishedAt: number | null
 }
 
-/** Task report callback with progress percentage */
+/* Task report callback with progress percentage */
 export type TaskReport = (message: string, progress?: number) => void

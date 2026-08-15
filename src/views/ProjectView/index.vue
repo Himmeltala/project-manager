@@ -597,8 +597,10 @@ async function onSelectorConfirm(path: string) {
 async function handleSetWarName(idx: number) {
   if (warnAllSources('修改 WAR 名称')) return
   const proj = getProjectByIdx(idx)
+  if (!proj) return
+  // 仅 flow 声明了 warName 设置项的项目类型允许修改
   const flow = getFlow(proj.projectType)
-  if (!proj || !flow.extraActions.some((a) => a.key === 'warName')) return
+  if (!flow.menu.typeActions?.some((a) => a.action === 'warName')) return
   const name = await usePrompt('WAR 名称', `WAR 名称（不含 .war 后缀）:`, proj.tomcatWarName)
   if (name === null) return
   const configPath = await window.electronAPI.invoke('project:getDefaultConfigPath')

@@ -21,7 +21,7 @@ export class TomcatFramework implements JavaFramework {
     return 'tomcat'
   }
 
-  /** 部署 WAR 到 Tomcat */
+  /* 部署 WAR 到 Tomcat */
   deployWar(projectPath: string, tomcatHome: string, warName: string): boolean {
     const warFile = join(projectPath, 'target', `${warName}.war`)
     if (!existsSync(warFile)) return false
@@ -35,7 +35,7 @@ export class TomcatFramework implements JavaFramework {
     }
   }
 
-  /** 获取 Tomcat 启动命令 */
+  /* 获取 Tomcat 启动命令 */
   getTomcatCommand(tomcatHome: string): string {
     const catalina = join(tomcatHome, 'bin', 'catalina.bat')
     return `"${catalina}" run`

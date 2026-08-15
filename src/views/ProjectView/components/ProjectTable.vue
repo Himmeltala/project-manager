@@ -150,13 +150,22 @@
             <div class="context-menu-item" @click="handleAction('vcsCheck')">检查变更</div>
           </div>
         </div>
-        <div class="context-menu-item context-menu-sub" @mouseenter="openSub = 'build'">
-          构建 <span class="sub-arrow">></span>
-          <div class="sub-menu" v-if="openSub === 'build'" @mouseleave="openSub = ''">
-            <div class="context-menu-item" @click="handleAction('build')">构建项目</div>
-            <div class="context-menu-item" @click="handleAction('install')">安装依赖</div>
-            <div class="context-menu-item" @click="handleAction('clean')">清理构建产物</div>
-            <div class="context-menu-item" @click="handleAction('cleanModules')">清理依赖目录</div>
+        <!-- 构建子菜单（由 flow 声明驱动） -->
+        <div
+          v-if="flowMenu?.buildGroup"
+          class="context-menu-item context-menu-sub"
+          @mouseenter="openSub = flowMenu.buildGroup.key"
+        >
+          {{ flowMenu.buildGroup.label }} <span class="sub-arrow">></span>
+          <div class="sub-menu" v-if="openSub === flowMenu.buildGroup.key" @mouseleave="openSub = ''">
+            <div
+              class="context-menu-item"
+              v-for="(item, i) in flowMenu.buildGroup.items"
+              :key="i"
+              @click="handleAction(item.action)"
+            >
+              {{ item.label }}
+            </div>
           </div>
         </div>
         <div class="context-menu-item context-menu-sub" @mouseenter="openSub = 'proj'">
@@ -170,10 +179,15 @@
         </div>
         <div class="context-menu-sep" />
 
-        <!-- 类型专属（由 Provider 注册表提供） -->
-        <template v-if="contextMenuItems.length">
-          <div class="context-menu-item" v-for="(item, i) in contextMenuItems" :key="i" @click="handleAction(item.id)">
-            {{ item.label }}{{ item.value ? ` (${item.value})` : '' }}
+        <!-- 类型专属设置项（由 flow 声明结构，后端注入动态值） -->
+        <template v-if="flowMenu?.typeActions?.length">
+          <div
+            class="context-menu-item"
+            v-for="(item, i) in flowMenu.typeActions"
+            :key="i"
+            @click="handleAction(item.action)"
+          >
+            {{ item.label }}{{ menuValues[item.action] ? ` (${menuValues[item.action]})` : '' }}
           </div>
         </template>
 
@@ -193,8 +207,15 @@
                 </div>
               </div>
             </div>
-            <div class="context-menu-item" @click="handleAction('proxy')">修改代理</div>
-            <div class="context-menu-item" @click="handleAction('proxyPort')">修改端口</div>
+            <!-- 配置操作项（由 flow 声明驱动，如修改代理/修改端口） -->
+            <div
+              class="context-menu-item"
+              v-for="(item, i) in flowMenu?.configItems"
+              :key="i"
+              @click="handleAction(item.action)"
+            >
+              {{ item.label }}
+            </div>
           </div>
         </div>
       </div>
@@ -360,8 +381,23 @@ const vcsType = ref<{ name: string; label: string } | null>(null)
 const terminalEntries = ref<TerminalEntry[]>([])
 const openers = ref<ConfigOpener[]>([])
 
-// 动态菜单数据（由 Provider 注册表提供）
+// 类型专属菜单项（后端 Provider 注册表提供，含动态 value）
 const contextMenuItems = ref<import('../../../types/project').ContextMenuItem[]>([])
+
+// 当前右键项目的 flow 菜单声明
+const flowMenu = computed(() => {
+  const proj = contextMenu.value.row?.project
+  return proj ? getFlow(proj.projectType).menu : null
+})
+
+// 后端菜单项 value 映射（按 id 匹配 flow 声明的 action）
+const menuValues = computed(() => {
+  const map: Record<string, string> = {}
+  for (const item of contextMenuItems.value) {
+    if (item.value) map[item.id] = item.value
+  }
+  return map
+})
 
 function onRowClick(_row: any) {}
 
@@ -423,18 +459,8 @@ async function onContextMenu(row: any, _column: any, event: MouseEvent) {
     openers.value = []
   }
 
-  // 获取类型专属右键菜单项（由 Provider 注册表决定显示内容）
+  // 获取类型专属右键菜单项（后端 Provider 注册表提供，含动态 value）
   const items = await window.electronAPI.invoke('projectMgr:getContextMenuItems', idx)
-  // 为已知 id 填充前端持有的动态值（如 Java/Maven/Tomcat 路径等）
-  for (const item of items) {
-    if (item.id === 'java') {
-      item.value = proj.javaHome ? proj.javaHome.split('\\').pop() || '系统默认' : '系统默认'
-    } else if (item.id === 'maven') {
-      item.value = proj.mavenHome ? proj.mavenHome.split('\\').pop() || '系统默认' : '系统默认'
-    } else if (item.id === 'tomcat') {
-      item.value = proj.tomcatHome ? proj.tomcatHome.split('\\').pop() || '系统默认' : '系统默认'
-    }
-  }
   contextMenuItems.value = items
 }
 

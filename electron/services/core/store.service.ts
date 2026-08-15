@@ -24,7 +24,7 @@ export function createStore(dataDir: string): Store {
   return { dir }
 }
 
-/** 路径分隔符和 parent 引用正则，防止路径穿越 */
+/* 路径分隔符和 parent 引用正则，防止路径穿越 */
 const KEY_INVALID = /[/\\]|\.\./
 
 /**

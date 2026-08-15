@@ -94,8 +94,10 @@ const buildOptions = computed(() => {
   if (props.buildCommands && props.buildCommands.length > 0) {
     opts.push(...props.buildCommands)
   } else if (props.scripts && Object.keys(props.scripts).length > 0) {
+    // 构建脚本命令按项目类型的命令模板生成，避免硬编码 npm 前缀
+    const template = getFlow(props.projectType).getTaskCommandTemplate()
     for (const name of Object.keys(props.scripts).filter((s) => /build/i.test(s))) {
-      opts.push(`npm run ${name}`)
+      opts.push(template.replace('{script}', name))
     }
   } else {
     opts.push(fallbackCmd.value)

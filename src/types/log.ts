@@ -7,12 +7,12 @@
  * @Description: 系统日志相关类型定义
  */
 
-/** 系统日志条目 */
+/* 系统日志条目 */
 export interface LogItem {
-  /** 时间戳 */
+  /* 时间戳 */
   timestamp: number
-  /** 日志消息 */
+  /* 日志消息 */
   message: string
-  /** 附加信息（堆栈、来源等） */
+  /* 附加信息（堆栈、来源等） */
   info: string
 }

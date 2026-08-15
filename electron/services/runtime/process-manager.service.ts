@@ -18,14 +18,14 @@ export interface PortProcessInfo {
   state: string
 }
 
-/** 系统保留端口，不允许杀 */
+/* 系统保留端口，不允许杀 */
 const HARD_PROTECTED_PORTS = new Set([135, 445, 3389])
 
 export class ProcessManager extends EventEmitter {
   // #region Init
   private projectTasks = new Map<string, ManagedProcess[]>()
   private readonly protectedPorts: Set<number>
-  /** 系统编码缓存，启动时检测一次即可 */
+  /* 系统编码缓存，启动时检测一次即可 */
   private static systemEncoding: string | null = null
 
   constructor(protectedPorts: Set<number> = new Set()) {
@@ -33,7 +33,7 @@ export class ProcessManager extends EventEmitter {
     this.protectedPorts = new Set([...HARD_PROTECTED_PORTS, ...protectedPorts])
   }
 
-  /** 获取系统编码（带缓存） */
+  /* 获取系统编码（带缓存） */
   private static getSystemEncoding(): string {
     if (ProcessManager.systemEncoding) return ProcessManager.systemEncoding
     try {

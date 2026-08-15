@@ -10,7 +10,7 @@ import type { JavaFramework } from '@electron/services/project-type/maven/framew
 import { SpringBootFramework } from '@electron/services/project-type/maven/framework/spring-boot'
 import { TomcatFramework } from '@electron/services/project-type/maven/framework/tomcat'
 
-/** Java 框架注册表 */
+/* Java 框架注册表 */
 class JavaFrameworkRegistryImpl {
   private frameworks: JavaFramework[] = []
 
@@ -31,7 +31,7 @@ class JavaFrameworkRegistryImpl {
   }
 }
 
-/** 全局单例（Maven 和 Gradle 共用） */
+/* 全局单例（Maven 和 Gradle 共用） */
 export const javaFrameworkRegistry = new JavaFrameworkRegistryImpl()
 
 // 按检测精确度注册（Spring Boot 通过 plugin 检测更精确，先匹配）

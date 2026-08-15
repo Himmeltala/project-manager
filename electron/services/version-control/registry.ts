@@ -8,13 +8,13 @@
  */
 export type SettingsGetter = (key: string, defaultVal?: any) => any
 
-/** 更新结果 */
+/* 更新结果 */
 export interface VcsUpdateResult {
   status: 'ok' | 'conflict' | 'error'
   text?: string
 }
 
-/** VCS 信息 */
+/* VCS 信息 */
 export interface VcsInfo {
   url?: string
   root?: string
@@ -23,13 +23,13 @@ export interface VcsInfo {
   revisionRemote?: string
 }
 
-/** VCS 版本信息 */
+/* VCS 版本信息 */
 export interface VcsRevisionInfo {
   revision: string
   revisionRemote: string
 }
 
-/** 批量检查结果（主进程通知用） */
+/* 批量检查结果（主进程通知用） */
 export interface VcsCheckResult {
   projectName: string
   projectPath: string
@@ -39,7 +39,7 @@ export interface VcsCheckResult {
   changeTypes?: string
 }
 
-/** VCS 提供者接口 -- 每种版本控制系统实现一个 */
+/* VCS 提供者接口 -- 每种版本控制系统实现一个 */
 export interface VcsProvider {
   readonly name: string
   readonly label: string
@@ -54,11 +54,11 @@ export interface VcsProvider {
   openLogGui?(path: string): boolean
   openRepoBrowser?(path: string): boolean
   getRevisionInfo?(path: string): Promise<VcsRevisionInfo | null>
-  /** 迁移：从远程仓库检出到目标目录 */
+  /* 迁移：从远程仓库检出到目标目录 */
   migrate?(url: string, targetDir: string): Promise<boolean>
 }
 
-/** 注册表：管理所有 VCS 提供者，按名称查找，按路径自动检测 */
+/* 注册表：管理所有 VCS 提供者，按名称查找，按路径自动检测 */
 export class VcsRegistryImpl {
   private providers: Map<string, VcsProvider> = new Map()
   private detectCache: Map<string, VcsProvider | null> = new Map()
@@ -117,5 +117,5 @@ export class VcsRegistryImpl {
   }
 }
 
-/** 全局单例 */
+/* 全局单例 */
 export const vcsRegistry = new VcsRegistryImpl()

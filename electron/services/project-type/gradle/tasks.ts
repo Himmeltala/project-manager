@@ -5,7 +5,7 @@ import { existsSync, readFileSync } from 'fs'
 import { join } from 'path'
 import type { TaskInfo } from '@/types/project'
 
-/** Gradle 标准任务（始终可用） */
+/* Gradle 标准任务（始终可用） */
 const STANDARD_TASKS: Record<string, string> = {
   clean: '清理构建产物',
   build: '构建项目',
@@ -15,7 +15,7 @@ const STANDARD_TASKS: Record<string, string> = {
   javadoc: '生成 JavaDoc',
 }
 
-/** 常见插件 task → 显示名 */
+/* 常见插件 task 显示名 */
 const KNOWN_PLUGINS: Record<string, string> = {
   bootRun: '运行 Spring Boot',
   dockerBuild: '构建 Docker 镜像',

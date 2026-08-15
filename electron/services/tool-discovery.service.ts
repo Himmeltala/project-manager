@@ -14,7 +14,7 @@ import type { AppSettings } from '@electron/services/core/settings.service'
 
 export type { ProjectTypeProvider } from '@electron/services/project-type/interface'
 
-/** 标记文件列表（用于扫描发现） */
+/* 标记文件列表（用于扫描发现） */
 export const MARKER_FILES: Set<string> = new Set(['package.json', 'pom.xml'])
 
 /**

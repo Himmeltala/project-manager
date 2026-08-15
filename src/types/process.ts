@@ -7,7 +7,7 @@
  * @Description: 子进程与任务运行相关类型
  */
 
-/** Running status pushed by main process periodically */
+/* Running status pushed by main process periodically */
 export interface RunningInfo {
   index: number
   name: string
@@ -16,7 +16,7 @@ export interface RunningInfo {
   modulePath?: string
 }
 
-/** Migration params (switch repo or copy directory) */
+/* Migration params (switch repo or copy directory) */
 export interface MigrationParams {
   mode: 'svn' | 'git' | 'copy'
   targetDir: string

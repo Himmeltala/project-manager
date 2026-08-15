@@ -11,7 +11,7 @@ import { ViteAdapter } from '@electron/services/project-type/npm/port-config/vit
 import { WebpackAdapter } from '@electron/services/project-type/npm/port-config/webpack'
 import { RspackAdapter } from '@electron/services/project-type/npm/port-config/rspack'
 
-/** Dev Server 端口配置适配器接口 */
+/* Dev Server 端口配置适配器接口 */
 export interface PortConfigAdapter {
   readonly name: string
   readonly label: string
@@ -38,11 +38,11 @@ export interface PortConfigAdapter {
   writePort(projectPath: string, newPort: number): boolean
 }
 
-/** 端口配置注册表 */
+/* 端口配置注册表 */
 class PortConfigRegistryImpl {
   private adapters: PortConfigAdapter[] = []
 
-  /** 注册适配器，按注册顺序决定检测优先级 */
+  /* 注册适配器，按注册顺序决定检测优先级 */
   register(adapter: PortConfigAdapter): void {
     this.adapters.push(adapter)
   }
@@ -62,7 +62,7 @@ class PortConfigRegistryImpl {
   }
 }
 
-/** 全局单例 */
+/* 全局单例 */
 export const portConfigRegistry = new PortConfigRegistryImpl()
 
 // 注册内置适配器（优先级：vue-cli > vite > webpack > rspack）

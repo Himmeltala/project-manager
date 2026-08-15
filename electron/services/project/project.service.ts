@@ -6,17 +6,17 @@
  * @FilePath: \electron\services\project.service.ts
  * @Description: 项目管理器业务逻辑服务
  */
-import { existsSync, copyFileSync, rmSync, readdirSync, statSync, mkdirSync } from 'fs'
+import { existsSync, copyFileSync, rmSync, readdirSync, statSync, mkdirSync, type Dirent } from 'fs'
 import { rm, stat, unlink } from 'fs/promises'
-import { join, basename, dirname } from 'path'
+import { join, basename, dirname, relative } from 'path'
 import { EventEmitter } from 'events'
 import { execSync, exec, spawn } from 'child_process'
 import * as iconv from 'iconv-lite'
 
-/** 模块级编码缓存，一旦检测缓存 */
+/* 模块级编码缓存，一旦检测缓存 */
 let cachedSystemEncoding: string | null = null
 
-/** 获取系统编码（带缓存） */
+/* 获取系统编码（带缓存） */
 function getSystemEncoding(): string {
   if (cachedSystemEncoding) return cachedSystemEncoding
   try {
@@ -227,7 +227,7 @@ export class ProjectService extends EventEmitter {
     return this.processMgr.getProjectTasks(path).map((t) => t.command || '')
   }
 
-  /**
+  /*
    * 获取所有项目运行中的脚本，按项目路径分组（跨源汇总）
    * @returns 路径到脚本命令列表的映射
    */
@@ -656,16 +656,30 @@ export class ProjectService extends EventEmitter {
 
     const profile =
       projectTypeRegistry.get(proj.projectType)?.getProfile() ?? projectTypeRegistry.get('npm')!.getProfile()
-    const outputDir = join(proj.path, profile.buildOutputDir)
     const items: BuildArtifact[] = []
 
-    if (existsSync(outputDir)) {
-      items.push({
-        path: outputDir,
-        display: `${profile.buildOutputDir}/ 目录`,
-        sizeStr: this.dirSizeStr(outputDir),
-        isDir: true,
-      })
+    // maven/gradle 多模块：每个子模块都有自己的构建产物目录（target / build），
+    // 仅扫描根目录会漏掉子模块产物，这里递归收集整个目录树
+    if (proj.projectType === 'maven' || proj.projectType === 'gradle') {
+      const dirName = proj.projectType === 'maven' ? 'target' : 'build'
+      for (const dir of this.collectDirsByName(proj.path, dirName, 6)) {
+        items.push({
+          path: dir,
+          display: `${relative(proj.path, dir).split('\\').join('/')}/ 目录`,
+          sizeStr: this.dirSizeStr(dir),
+          isDir: true,
+        })
+      }
+    } else {
+      const outputDir = join(proj.path, profile.buildOutputDir)
+      if (existsSync(outputDir)) {
+        items.push({
+          path: outputDir,
+          display: `${profile.buildOutputDir}/ 目录`,
+          sizeStr: this.dirSizeStr(outputDir),
+          isDir: true,
+        })
+      }
     }
 
     if (existsSync(proj.path)) {
@@ -684,6 +698,39 @@ export class ProjectService extends EventEmitter {
     }
 
     return items
+  }
+
+  /**
+   * 递归收集目录树中所有指定名字的目录（限制深度，跳过隐藏目录与依赖目录）
+   * @param root 起始目录
+   * @param dirName 目标目录名（如 target / build）
+   * @param maxDepth 最大递归深度
+   */
+  private collectDirsByName(root: string, dirName: string, maxDepth: number): string[] {
+    const result: string[] = []
+    const walk = (dir: string, depth: number) => {
+      if (depth > maxDepth) return
+      let entries: Dirent[]
+      try {
+        entries = readdirSync(dir, { withFileTypes: true })
+      } catch {
+        return
+      }
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue
+        const full = join(dir, entry.name)
+        if (entry.name === dirName) {
+          result.push(full)
+          // 命中后不再深入该目录（target/build 内不会再嵌套同名目录）
+          continue
+        }
+        // 跳过隐藏目录、依赖目录与构建产物目录，避免无谓遍历
+        if (entry.name.startsWith('.') || entry.name === 'node_modules' || entry.name === 'dist') continue
+        walk(full, depth + 1)
+      }
+    }
+    walk(root, 0)
+    return result
   }
 
   async cleanArtifacts(idx: number, itemPaths: string[]): Promise<number> {
@@ -762,11 +809,17 @@ export class ProjectService extends EventEmitter {
     if (!proj) return []
 
     const provider = projectTypeRegistry.get(proj.projectType)
-    if (provider?.getContextMenuItems) {
-      return provider.getContextMenuItems(proj.path)
-    }
+    if (!provider?.getContextMenuItems) return []
 
-    return []
+    // 为路径型菜单项注入项目配置的当前值，末端路径作为显示名
+    const menuItems = provider.getContextMenuItems(proj.path)
+    const homeValue = (home: string): string => (home ? home.split('\\').pop() || '系统默认' : '系统默认')
+    for (const item of menuItems) {
+      if (item.id === 'java') item.value = homeValue(proj.javaHome)
+      else if (item.id === 'maven') item.value = homeValue(proj.mavenHome)
+      else if (item.id === 'tomcat') item.value = homeValue(proj.tomcatHome)
+    }
+    return menuItems
   }
 
   async runScript(idx: number, command: string): Promise<boolean> {

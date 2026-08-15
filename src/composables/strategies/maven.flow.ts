@@ -2,7 +2,7 @@
  * @Author: zhengrenfu
  * @Date: 2026-08-09
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-08-10
+ * @LastEditTime: 2026-08-15
  * @FilePath: \src\composables\strategies\maven.flow.ts
  * @Description: Maven 项目流程策略
  */
@@ -22,16 +22,26 @@ export const mavenFlow: ProjectFlowAdapter = {
 
   installCommands: ['mvn install', 'mvn clean install'],
 
-  extraActions: [
-    { key: 'java', label: 'Java 版本' },
-    { key: 'maven', label: 'Maven 版本' },
-    { key: 'tomcat', label: 'Tomcat 版本' },
-    { key: 'warName', label: 'WAR 名称' },
-  ],
-
   supportsBuildToolDetection: false,
 
   getTaskCommandTemplate: (taskName?: string) => `mvn ${taskName || '{script}'}`,
 
   defaultBuildCommand: 'mvn package -DskipTests',
+
+  menu: {
+    buildGroup: {
+      key: 'build',
+      label: '构建',
+      items: [
+        { action: 'install', label: '安装依赖' },
+        { action: 'clean', label: '清理构建产物' },
+      ],
+    },
+    typeActions: [
+      { action: 'java', label: 'Java 版本' },
+      { action: 'maven', label: 'Maven 版本' },
+      { action: 'tomcat', label: 'Tomcat 版本' },
+      { action: 'warName', label: 'WAR 名称' },
+    ],
+  },
 }
