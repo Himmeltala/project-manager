@@ -895,7 +895,9 @@ function initServices(): void {
     notificationService.createNotification('info', '发现新版本', `安装包: ${data.filename}`)
   })
   updateService.on('updateNotFound', () => mainWindow?.webContents.send(IPC_EVENT.updateNotFound))
-  updateService.on('updateCheckError', (message) => mainWindow?.webContents.send(IPC_EVENT.updateCheckError, { message }))
+  updateService.on('updateCheckError', (message) =>
+    mainWindow?.webContents.send(IPC_EVENT.updateCheckError, { message }),
+  )
   updateService.on('updateDownloaded', (filePath) =>
     mainWindow?.webContents.send(IPC_EVENT.updateDownloaded, { filePath }),
   )
