@@ -4,6 +4,13 @@ import electron from 'vite-plugin-electron'
 import renderer from 'vite-plugin-electron-renderer'
 import { resolve } from 'path'
 
+// vite-plugin-electron 的主进程/预加载构建不会加载根配置（内部 configFile=false），
+// 根配置里的 resolve.alias 不会自动继承，必须显式注入到每个 entry 的 vite 配置
+const electronAlias = {
+  '@': resolve(import.meta.dirname, 'src'),
+  '@electron': resolve(import.meta.dirname, 'electron'),
+}
+
 export default defineConfig({
   server: {
     port: 5174,
@@ -14,6 +21,9 @@ export default defineConfig({
       {
         entry: 'electron/main.ts',
         vite: {
+          resolve: {
+            alias: electronAlias,
+          },
           build: {
             outDir: 'dist-electron',
             rollupOptions: {
@@ -28,6 +38,9 @@ export default defineConfig({
           options.reload()
         },
         vite: {
+          resolve: {
+            alias: electronAlias,
+          },
           build: {
             outDir: 'dist-electron',
             minify: false,
@@ -41,10 +54,7 @@ export default defineConfig({
     renderer(),
   ],
   resolve: {
-    alias: {
-      '@': resolve(import.meta.dirname, 'src'),
-      '@electron': resolve(import.meta.dirname, 'electron'),
-    },
+    alias: electronAlias,
   },
   build: {
     outDir: 'dist',

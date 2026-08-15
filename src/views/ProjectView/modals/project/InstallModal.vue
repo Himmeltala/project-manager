@@ -15,7 +15,7 @@
     top="2vh"
     :close-on-click-modal="false"
   >
-    <el-form label-width="0">
+    <el-form label-width="70px">
       <el-alert
         :title="`将对 [${projectName}] 执行 ${selectedCommand}`"
         type="info"
@@ -27,10 +27,17 @@
         <br />
         <el-checkbox v-model="forceFlag" style="margin-bottom: 8px">--force</el-checkbox>
       </template>
-      <template v-else>
+      <template v-else-if="isMaven">
         <el-checkbox v-model="skipTests" style="margin-bottom: 8px">-DskipTests</el-checkbox>
         <br />
         <el-checkbox v-model="updateSnapshots" style="margin-bottom: 8px">-U (强制更新快照)</el-checkbox>
+      </template>
+      <template v-else>
+        <el-checkbox v-model="skipTests" style="margin-bottom: 8px">-x test</el-checkbox>
+        <br />
+        <el-checkbox v-model="updateSnapshots" style="margin-bottom: 8px"
+          >--refresh-dependencies (强制刷新依赖)</el-checkbox
+        >
       </template>
       <el-form-item label="额外参数:" style="margin-top: 8px; margin-bottom: 0">
         <el-input
@@ -73,10 +80,14 @@ const isNpmLike = computed(() => {
   return flow.type === 'npm' || flow.type === 'pnpm'
 })
 
+// 是否 Maven（非 npm 类型中，Maven 与 Gradle 的追加参数不同）
+const isMaven = computed(() => getFlow(props.projectType).type === 'maven')
+
 // 当前项目的安装依赖命令列表，由 flow adapter 提供，默认选中第一项
 const installCommands = computed(() => {
-  const cmds = getFlow(props.projectType).installCommands
-  return cmds.length > 0 ? cmds : ['npm install']
+  const flow = getFlow(props.projectType)
+  const cmds = flow.installCommands
+  return cmds.length > 0 ? cmds : [flow.defaultBuildCommand]
 })
 
 const selectedCommand = ref('')
@@ -90,7 +101,7 @@ watch(
     skipTests.value = true
     updateSnapshots.value = false
     extraFlags.value = ''
-    selectedCommand.value = installCommands.value[0] || 'npm install'
+    selectedCommand.value = installCommands.value[0] || getFlow(props.projectType).defaultBuildCommand
   },
 )
 
@@ -99,9 +110,12 @@ function confirm() {
   if (isNpmLike.value) {
     if (legacyPeers.value) flags.push('--legacy-peer-deps')
     if (forceFlag.value) flags.push('--force')
-  } else {
+  } else if (isMaven.value) {
     if (skipTests.value) flags.push('-DskipTests')
     if (updateSnapshots.value) flags.push('-U')
+  } else {
+    if (skipTests.value) flags.push('-x test')
+    if (updateSnapshots.value) flags.push('--refresh-dependencies')
   }
   const extra = extraFlags.value.trim()
   if (extra) flags.push(extra)

@@ -2,8 +2,8 @@
  * @Author: zhengrenfu
  * @Date: 2026-07-14
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-08-03
- * @FilePath: \src\components\ProcessOutputPanel.vue
+ * @LastEditTime: 2026-08-15 14:35:57
+ * @FilePath: /src/components/ProcessOutputPanel.vue
  * @Description: 进程输出面板，展示 Electron 子进程 stdout/stderr 实时输出
 -->
 <template>
@@ -128,7 +128,6 @@ onMounted(async () => {
   // 批量（主进程 50ms 窗口合并发送）
   cleanups.push(
     window.electronAPI.on('event:outputBatch', (batch) => {
-      console.log('[DEBUG panel] outputBatch received, lines:', batch.length)
       for (const data of batch) {
         collectLine(formatLine(data))
       }

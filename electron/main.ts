@@ -296,12 +296,11 @@ function registerIpc(): void {
   ipcMain.handle('project:getDefaultConfigPath', () => sourceMgr.getActiveConfigPath())
   ipcMain.handle('project:detectConfigFile', (_e, projectPath: string) => detectConfigFilePath(projectPath, settings))
 
-  /** 获取 Maven/Gradle 多模块项目中可运行的子模块列表 */
-  ipcMain.handle('project:getRunnableModules', (_e, idx: number) => {
-    const proj = projectService.getProjectByIndex(idx)
-    if (!proj) return []
-    const provider = projectTypeRegistry.get(proj.projectType)
-    const modules = provider?.detectRunnableModules?.(proj.path) ?? []
+  /** 获取 Maven/Gradle 多模块项目中可运行的子模块列表（按路径解析，避免"所有源"模式序号错位） */
+  ipcMain.handle('project:getRunnableModules', (_e, path: string, type: string) => {
+    if (!path) return []
+    const provider = projectTypeRegistry.get(type)
+    const modules = provider?.detectRunnableModules?.(path) ?? []
     return modules
   })
 

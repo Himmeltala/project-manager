@@ -11,6 +11,7 @@ import { rm, stat, unlink } from 'fs/promises'
 import { join, basename, dirname } from 'path'
 import { EventEmitter } from 'events'
 import { execSync, exec, spawn } from 'child_process'
+import * as iconv from 'iconv-lite'
 
 /** 模块级编码缓存，一旦检测缓存 */
 let cachedSystemEncoding: string | null = null
@@ -35,7 +36,8 @@ function execAsync(cmd: string, opts: any = {}): Promise<{ text: string; exitCod
       const decode = (buf: Buffer): string => {
         let t = buf.toString('utf-8')
         if (t.includes('�')) {
-          t = buf.toString(getSystemEncoding() as BufferEncoding)
+          // Node Buffer 不支持 gbk，用 iconv-lite 解码（chcp 936   GBK）
+          t = iconv.decode(buf, getSystemEncoding())
         }
         return t
       }
@@ -80,7 +82,8 @@ function execAsyncStream(
       // 去掉 ANSI 颜色转义码（npm/vite 输出的 \x1b[...m 等）
       t = t.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '')
       if (t.includes('�')) {
-        t = buf.toString(getSystemEncoding() as BufferEncoding)
+        // Node Buffer 不支持 gbk，用 iconv-lite 解码（chcp 936   GBK）
+        t = iconv.decode(buf, getSystemEncoding())
         t = t.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '')
       }
       return t
@@ -201,12 +204,15 @@ export class ProjectService extends EventEmitter {
   }
 
   getRunningInfo(): RunningInfo[] {
-    return Array.from(this.running.entries()).map(([idx, mp]) => ({
-      index: idx,
-      name: mp.name,
-      path: mp.path,
-      port: mp.port,
-    }))
+    // running 中一个项目可能对应多个运行进程（多模块），展平为每个进程一条记录
+    return Array.from(this.running.entries()).flatMap(([idx, mps]) =>
+      mps.map((mp) => ({
+        index: idx,
+        name: mp.name,
+        path: mp.path,
+        port: mp.port,
+      })),
+    )
   }
 
   getAllRunningPaths(): Record<string, number | null> {
@@ -278,8 +284,8 @@ export class ProjectService extends EventEmitter {
     if (!mp) return false
     // 找到对应的 idx（可能在当前源或其他源）
     let idx = 0
-    for (const [i, m] of this.running) {
-      if (m.path === path) {
+    for (const [i, mps] of this.running) {
+      if (mps.some((m) => m.path === path)) {
         idx = i
         break
       }
@@ -315,7 +321,7 @@ export class ProjectService extends EventEmitter {
     mp.command = cmd
     if (command) {
       const m = /-pl\s+(\S+)/.exec(command)
-      if (m) mp.name = proj.name + ' → ' + (m[1].split('/').pop() || m[1])
+      if (m) mp.name = proj.name + '   ' + (m[1].split('/').pop() || m[1])
     }
 
     const existing = this.running.get(idx) || []
@@ -772,7 +778,7 @@ export class ProjectService extends EventEmitter {
     mp.name = proj.name
     if (command) {
       const m = /-pl\s+(\S+)/.exec(command)
-      if (m) mp.name = proj.name + ' → ' + (m[1].split('/').pop() || m[1])
+      if (m) mp.name = proj.name + '   ' + (m[1].split('/').pop() || m[1])
     }
     mp.command = command
 
@@ -801,7 +807,7 @@ export class ProjectService extends EventEmitter {
     mp.name = proj.name
     if (command) {
       const m = /-pl\s+(\S+)/.exec(command)
-      if (m) mp.name = proj.name + ' → ' + (m[1].split('/').pop() || m[1])
+      if (m) mp.name = proj.name + '   ' + (m[1].split('/').pop() || m[1])
     }
 
     this.processMgr.startOutputThread(

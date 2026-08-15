@@ -3,14 +3,22 @@
   "version": "3.3.1",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "packageManager": "pnpm@11.20.0",
+  "config": {
+    "electron_mirror": "https://cdn.npmmirror.com/binaries/electron/"
+  },
   "main": "dist-electron/main.js",
   "scripts": {
+    "preinstall": "node scripts/check-pnpm.cjs",
     "dev": "vite",
-    "build": "vue-tsc --noEmit && vite build",
+    "build": "vue-tsc --noEmit && vue-tsc --noEmit -p tsconfig.node.json && node scripts/clean-dist-electron.js && vite build",
     "preview": "vite preview",
-    "make": "npm run build && set ELECTRON_MIRROR=https://cdn.npmmirror.com/binaries/electron/&& electron-forge make",
-    "make:dir": "npm run build && set ELECTRON_MIRROR=https://cdn.npmmirror.com/binaries/electron/&& electron-forge make --skip-package",
-    "pack": "npm run build && set ELECTRON_MIRROR=https://cdn.npmmirror.com/binaries/electron/&& electron-forge package && node scripts/copy-out.js",
+    "make": "pnpm run build && set ELECTRON_MIRROR=https://cdn.npmmirror.com/binaries/electron/&& electron-forge make",
+    "make:dir": "pnpm run build && set ELECTRON_MIRROR=https://cdn.npmmirror.com/binaries/electron/&& electron-forge make --skip-package",
+    "pack": "node scripts/clean-out.js && pnpm run build && set ELECTRON_MIRROR=https://cdn.npmmirror.com/binaries/electron/&& electron-forge package && node scripts/copy-out.js",
     "format": "prettier --write \"src/**/*.{ts,vue}\" \"electron/**/*.ts\" \"*.ts\"",
     "lint": "eslint src/ --no-error-on-unmatched-pattern",
     "lint:fix": "eslint src/ --fix --no-error-on-unmatched-pattern"
