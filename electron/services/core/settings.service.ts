@@ -2,7 +2,7 @@
  * @Author: zhengrenfu
  * @Date: 2026-07-20
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-07-20
+ * @LastEditTime: 2026-09-03
  * @FilePath: \electron\services\settings.service.ts
  * @Description: 应用设置管理服务
  */
@@ -56,6 +56,36 @@ export class AppSettings {
     d[parts[parts.length - 1]] = value
   }
 
+  /**
+   * 深度合并源对象到目标对象，仅普通对象递归合并，数组与标量整体替换
+   * 防止文件中的对象组（如历史遗留 terminal 组）覆盖同组其余默认键
+   * @param target 目标对象，合并结果写入此对象
+   * @param source 源对象，其值覆盖目标对象的同名字段
+   * @returns 合并后的目标对象
+   */
+  private deepMerge(target: Record<string, any>, source: Record<string, any>): Record<string, any> {
+    for (const key of Object.keys(source)) {
+      const sourceValue = source[key]
+      const targetValue = target[key]
+      // 双方都是普通对象时逐键深入，否则整体替换
+      if (this.isPlainObject(sourceValue) && this.isPlainObject(targetValue)) {
+        target[key] = this.deepMerge(targetValue, sourceValue)
+      } else {
+        target[key] = sourceValue
+      }
+    }
+    return target
+  }
+
+  /**
+   * 判断值是否为可递归合并的普通对象，数组与 null 不参与递归
+   * @param value 待判断的值
+   * @returns 是否为普通对象
+   */
+  private isPlainObject(value: any): boolean {
+    return value !== null && typeof value === 'object' && !Array.isArray(value)
+  }
+
   private load(): void {
     if (!existsSync(this.path)) {
       this.save()
@@ -63,7 +93,8 @@ export class AppSettings {
     }
     try {
       const loaded = JSON.parse(readFileSync(this.path, 'utf-8'))
-      Object.assign(this.data, loaded)
+      // 以深度合并代替浅合并，schema 默认值打底、文件值逐键覆盖
+      this.deepMerge(this.data, loaded)
     } catch {
       // ignore
     }

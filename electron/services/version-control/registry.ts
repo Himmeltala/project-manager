@@ -2,8 +2,8 @@
  * @Author: zhengrenfu
  * @Date: 2026-07-21
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-07-21
- * @FilePath: \electron\services\vcs\index.ts
+ * @LastEditTime: 2026-09-03
+ * @FilePath: \electron\services\version-control\registry.ts
  * @Description: VCS 提供者接口定义、注册表实现与全局单例
  */
 export type SettingsGetter = (key: string, defaultVal?: any) => any
@@ -12,6 +12,14 @@ export type SettingsGetter = (key: string, defaultVal?: any) => any
 export interface VcsUpdateResult {
   status: 'ok' | 'conflict' | 'error'
   text?: string
+}
+
+/* VCS 更新过程回调，由调用方在耗时命令执行期间接收实时反馈 */
+export interface VcsProgressHook {
+  /* 实时输出行，已按行拆分且不包含纯进度帧，可安全消费 */
+  onLine?: (line: string) => void
+  /* 解析出的进度百分比，递增变化，范围 0-99（100 由任务层完成时给出） */
+  onPercent?: (percent: number) => void
 }
 
 /* VCS 信息 */
@@ -45,7 +53,7 @@ export interface VcsProvider {
   readonly label: string
 
   isProject(path: string): boolean
-  update(path: string): Promise<VcsUpdateResult>
+  update(path: string, hooks?: VcsProgressHook): Promise<VcsUpdateResult>
   log(path: string, limit?: number): Promise<boolean>
   getInfo(path: string): VcsInfo | null
   checkRemote(projects: { name: string; path: string }[]): Promise<VcsCheckResult[]>
@@ -55,7 +63,7 @@ export interface VcsProvider {
   openRepoBrowser?(path: string): boolean
   getRevisionInfo?(path: string): Promise<VcsRevisionInfo | null>
   /* 迁移：从远程仓库检出到目标目录 */
-  migrate?(url: string, targetDir: string): Promise<boolean>
+  migrate?(url: string, targetDir: string, hooks?: VcsProgressHook): Promise<boolean>
 }
 
 /* 注册表：管理所有 VCS 提供者，按名称查找，按路径自动检测 */

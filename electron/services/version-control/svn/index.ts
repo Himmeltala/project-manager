@@ -2,8 +2,8 @@
  * @Author: zhengrenfu
  * @Date: 2026-07-21
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-08-03
- * @FilePath: \electron\services\vcs\adapters\svn.ts
+ * @LastEditTime: 2026-09-03
+ * @FilePath: \electron\services\version-control\svn\index.ts
  * @Description: SVN 版本控制提供者，支持可配置的 SVN/TortoiseSVN 路径
  */
 import { exec, execSync } from 'child_process'
@@ -14,9 +14,16 @@ import type {
   VcsUpdateResult,
   VcsInfo,
   VcsCheckResult,
+  VcsProgressHook,
   SettingsGetter,
 } from '@electron/services/version-control/registry'
 import * as iconv from 'iconv-lite'
+import { runSpawnStream } from '@electron/services/version-control/spawn-stream'
+
+/* svn 常规命令的超时毫秒数，大仓库更新耗时较长 */
+const SVN_COMMAND_TIMEOUT = 60000
+/* svn checkout 迁移的超时毫秒数 */
+const SVN_CHECKOUT_TIMEOUT = 300000
 
 const CHANGE_PREFIXES = new Set(['M', 'A', 'D', '!', '?', 'C', '~', 'I', 'R'])
 const TYPE_NAMES: Record<string, string> = {
@@ -59,7 +66,11 @@ export class SvnProvider implements VcsProvider {
     return null
   }
 
-  private execSvn(path: string, args: string[], timeout = 60000): Promise<{ ok: boolean; stdout: string }> {
+  private execSvn(
+    path: string,
+    args: string[],
+    timeout = SVN_COMMAND_TIMEOUT,
+  ): Promise<{ ok: boolean; stdout: string }> {
     const svnPath = this.getSvnPath()
     // 路径包含空格时用引号包裹，避免 shell 解析错误
     const quotedSvn = svnPath.includes(' ') ? `"${svnPath}"` : svnPath
@@ -110,18 +121,61 @@ export class SvnProvider implements VcsProvider {
     return false
   }
 
-  async update(path: string): Promise<VcsUpdateResult> {
-    const { stdout, ok } = await this.execSvn(path, ['update', '--accept', 'postpone'])
-    if (!stdout.trim()) return { status: 'error', text: stdout }
+  /**
+   * 以流式方式执行 svn 命令，stdout 与 stderr 的每行输出实时回调
+   * 同时收集完整文本用于结果分类，超时后强制结束子进程
+   * @param {string} path 工作目录
+   * @param {string[]} args svn 命令参数
+   * @param {number} timeout 超时毫秒数
+   * @param {VcsProgressHook} [hooks] 更新过程回调，仅使用其中的逐行输出回调
+   * @returns {Promise<{ ok: boolean; stdout: string; stderr: string }>} 退出状态与完整输出
+   */
+  private spawnSvnStream(
+    path: string,
+    args: string[],
+    timeout: number,
+    hooks?: VcsProgressHook,
+  ): Promise<{ ok: boolean; stdout: string; stderr: string }> {
+    return runSpawnStream({
+      command: this.getSvnPath(),
+      args,
+      cwd: path,
+      timeout,
+      onLine: hooks
+        ? (line) => {
+            const text = line.trim()
+            // SVN 无进度百分比，非空行全部作为实时文本行
+            if (text) hooks.onLine?.(text)
+          }
+        : undefined,
+    })
+  }
 
-    const lower = stdout.toLowerCase()
+  /**
+   * 更新工作副本到最新版本，输出行实时透传给调用方
+   * stdout 为空时回退使用 stderr 内容，与 exec 通道的历史文本语义一致
+   * @param {string} path 工作副本路径
+   * @param {VcsProgressHook} [hooks] 更新过程回调
+   * @returns {Promise<VcsUpdateResult>} 更新结果
+   */
+  async update(path: string, hooks?: VcsProgressHook): Promise<VcsUpdateResult> {
+    const { ok, stdout, stderr } = await this.spawnSvnStream(
+      path,
+      ['update', '--accept', 'postpone'],
+      SVN_COMMAND_TIMEOUT,
+      hooks,
+    )
+    const text = stdout || stderr
+    if (!text.trim()) return { status: 'error', text }
+
+    const lower = text.toLowerCase()
     if (lower.includes('conflict') || lower.includes('合并冲突')) {
-      return { status: 'conflict', text: stdout }
+      return { status: 'conflict', text }
     }
     if (lower.includes('revision') || lower.includes('updated') || lower.includes('checkout')) {
-      return { status: 'ok', text: stdout }
+      return { status: 'ok', text }
     }
-    return ok ? { status: 'ok', text: stdout } : { status: 'error', text: stdout }
+    return ok ? { status: 'ok', text } : { status: 'error', text }
   }
 
   async log(path: string, limit = 20): Promise<boolean> {
@@ -253,14 +307,19 @@ export class SvnProvider implements VcsProvider {
   }
 
   /**
-   * 使用 svn checkout 将远程仓库检出到目标目录
-   * 复用 execSvn 的统一编码检测和 Promise 封装
+   * 使用 svn checkout 将远程仓库检出到目标目录，输出行实时透传给调用方
    * @param {string} url SVN 仓库地址
    * @param {string} targetDir 目标目录路径
+   * @param {VcsProgressHook} [hooks] 更新过程回调
    * @returns {Promise<boolean>} 操作是否成功
    */
-  async migrate(url: string, targetDir: string): Promise<boolean> {
-    const { ok } = await this.execSvn(dirname(targetDir), ['checkout', url, targetDir], 300000)
-    return ok
+  async migrate(url: string, targetDir: string, hooks?: VcsProgressHook): Promise<boolean> {
+    const result = await this.spawnSvnStream(
+      dirname(targetDir),
+      ['checkout', url, targetDir],
+      SVN_CHECKOUT_TIMEOUT,
+      hooks,
+    )
+    return result.ok
   }
 }

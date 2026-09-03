@@ -2,13 +2,14 @@
  * @Author: zhengrenfu
  * @Date: 2026-07-20
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-07-20
+ * @LastEditTime: 2026-09-03
  * @FilePath: \electron\services\task.service.ts
  * @Description: 后台任务队列服务
  */
 // #region Imports
 import { EventEmitter } from 'events'
 import { randomUUID } from 'crypto'
+import { SETTINGS_KEYS } from '@/ipc/keys'
 import type { BackgroundTask, TaskStatus, TaskReport } from '@/types/task'
 
 // #endregion
@@ -25,7 +26,16 @@ export class TaskService extends EventEmitter {
   constructor(settingsGetter?: (key: string, defaultVal?: any) => any) {
     super()
     this.settingsGetter = settingsGetter
-    this.maxConcurrency = settingsGetter ? settingsGetter('tasks.max_concurrency', 5) : 5
+    this.maxConcurrency = settingsGetter ? settingsGetter(SETTINGS_KEYS.tasks.maxConcurrency, 5) : 5
+  }
+
+  /**
+   * 更新后台任务并发上限，运行中实时生效，无需重启应用
+   * @param value 新的并发上限，非数字或小于 1 时按 1 处理
+   */
+  setMaxConcurrency(value: number): void {
+    const parsed = Math.floor(Number(value))
+    this.maxConcurrency = Number.isFinite(parsed) && parsed >= 1 ? parsed : 1
   }
 
   addTask(name: string, target?: (report: TaskReport) => void): string {
@@ -147,7 +157,7 @@ export class TaskService extends EventEmitter {
   }
 
   private pruneOldTasks(): void {
-    const maxCount = this.settingsGetter ? this.settingsGetter('tasks.max_count', 50) : 50
+    const maxCount = this.settingsGetter ? this.settingsGetter(SETTINGS_KEYS.tasks.maxCount, 50) : 50
     if (this.tasks.size <= maxCount) return
     const toRemove = Array.from(this.tasks.values())
       .filter((t) => t.status === 'completed' || t.status === 'failed')

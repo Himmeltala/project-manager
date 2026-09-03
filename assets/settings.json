@@ -3,7 +3,10 @@
   "theme": "dark",
   "protected_ports": "",
   "output": {
-    "max_lines": 1000
+    "max_lines": 5000
+  },
+  "bottom_panel": {
+    "height": 200
   },
   "notifications": {
     "enabled": true,
@@ -15,22 +18,18 @@
     "show_warning": true,
     "show_error": true
   },
-  "terminal": {
-    "shell": "powershell"
-  },
   "update": {
     "type": "每次启动",
     "frequency": "每天",
     "custom_minutes": 1440,
     "url": "http://11.1.1.179:8099",
-    "last_check": 1781417846.3442762
+    "last_check": 0
   },
   "scheduled_checks": {
-    "remote_enabled": true,
+    "remote_enabled": false,
     "remote_interval_minutes": 30,
-    "local_enabled": true,
-    "local_interval_minutes": 30
+    "local_enabled": false,
+    "local_interval_minutes": 15
   },
-  "test": null,
   "openers": "[{\"name\":\"VS Code\",\"path\":\"code.cmd\",\"args\":\"--new-window {path}\"},{\"name\":\"记事本\",\"path\":\"notepad.exe\",\"args\":\"{file}\"},{\"name\":\"Notepad++\",\"path\":\"notepad++.exe\",\"args\":\"{file}\"}]"
 }

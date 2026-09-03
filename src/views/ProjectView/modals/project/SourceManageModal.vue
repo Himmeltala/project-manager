@@ -2,8 +2,8 @@
  * @Author: zhengrenfu
  * @Date: 2026-07-14
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-07-25
- * @FilePath: \src\views\ProjectView\modals\SourceManageModal.vue
+ * @LastEditTime: 2026-09-03
+ * @FilePath: \src\views\ProjectView\modals\project\SourceManageModal.vue
  * @Description: 管理项目源对话框
 -->
 <template>
@@ -36,10 +36,12 @@
     </el-table>
     <template #footer>
       <div style="display: flex; gap: 8px">
-        <el-button plain size="small" @click="renameSource">重命名</el-button>
-        <el-button plain size="small" @click="switchSource">设为当前</el-button>
-        <el-button plain size="small" @click="refreshSource">刷新</el-button>
-        <el-button plain type="danger" size="small" @click="deleteSource">删除源</el-button>
+        <el-button plain size="small" :disabled="pullStore.pulling" @click="renameSource">重命名</el-button>
+        <el-button plain size="small" :disabled="pullStore.pulling" @click="switchSource">设为当前</el-button>
+        <el-button plain size="small" :disabled="pullStore.pulling" @click="refreshSource">刷新</el-button>
+        <el-button plain type="danger" size="small" :disabled="pullStore.pulling" @click="deleteSource"
+          >删除源</el-button
+        >
         <div style="flex: 1" />
         <el-button plain size="small" @click="emit('close')">关闭</el-button>
       </div>
@@ -52,9 +54,11 @@ import { ref, watch } from 'vue'
 import { IPC } from '@/ipc/channels'
 
 import { useProjectStore } from '@/stores/project.store'
+import { usePullStore } from '@/stores/pull.store'
 import { useConfirm, usePrompt, useSuccess, useError, useWarning } from '@/composables/useMessage'
 
 const store = useProjectStore()
+const pullStore = usePullStore()
 
 const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<{ (e: 'close'): void }>()
@@ -79,6 +83,10 @@ async function load() {
 }
 
 async function switchSource(row?: any) {
+  if (pullStore.pulling) {
+    useWarning('正在拉取项目，暂不能切换项目源')
+    return
+  }
   const name = row?.name || selectedName.value
   if (!name) {
     useWarning('请选择要切换的源')
@@ -94,6 +102,10 @@ async function switchSource(row?: any) {
 }
 
 async function renameSource() {
+  if (pullStore.pulling) {
+    useWarning('正在拉取项目，暂不能重命名项目源')
+    return
+  }
   const name = selectedName.value
   if (!name) {
     useWarning('请选择要重命名的源')
@@ -107,6 +119,10 @@ async function renameSource() {
 }
 
 async function deleteSource() {
+  if (pullStore.pulling) {
+    useWarning('正在拉取项目，请等待完成或先中断')
+    return
+  }
   const name = selectedName.value
   if (!name) {
     useWarning('请选择要删除的源')
@@ -124,6 +140,10 @@ async function deleteSource() {
 }
 
 async function refreshSource() {
+  if (pullStore.pulling) {
+    useWarning('正在拉取项目，请等待完成或先中断')
+    return
+  }
   const name = selectedName.value
   if (!name) {
     useWarning('请选择要刷新的源')

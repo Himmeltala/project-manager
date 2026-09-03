@@ -2,11 +2,12 @@
  * @Author: zhengrenfu
  * @Date: 2026-07-14
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-07-25
- * @FilePath: \src\views\ProjectView\modals\SettingsModal.vue
+ * @LastEditTime: 2026-09-03
+ * @FilePath: \src\views\ProjectView\modals\settings\SettingsModal.vue
  * @Description: 设置对话框
 -->
 <template>
+  <!-- 关闭对话框时销毁其内容，保证嵌套的配置编辑器在每次打开时重新挂载并加载最新数据 -->
   <el-dialog
     :model-value="visible"
     @update:model-value="emit('close')"
@@ -14,6 +15,7 @@
     width="800"
     top="2vh"
     :close-on-click-modal="false"
+    destroy-on-close
   >
     <div class="settings-layout">
       <el-menu :default-active="activeCategory" class="settings-menu" @select="onSelectCategory">

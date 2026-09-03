@@ -2,7 +2,7 @@
  * @Author: zhengrenfu
  * @Date: 2026-07-20
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-07-20
+ * @LastEditTime: 2026-09-03
  * @FilePath: \electron\services\process-manager.service.ts
  * @Description: 子进程管理服务
  */
@@ -24,13 +24,29 @@ const HARD_PROTECTED_PORTS = new Set([135, 445, 3389])
 export class ProcessManager extends EventEmitter {
   // #region Init
   private projectTasks = new Map<string, ManagedProcess[]>()
-  private readonly protectedPorts: Set<number>
+  private protectedPorts: Set<number>
   /* 系统编码缓存，启动时检测一次即可 */
   private static systemEncoding: string | null = null
 
   constructor(protectedPorts: Set<number> = new Set()) {
     super()
     this.protectedPorts = new Set([...HARD_PROTECTED_PORTS, ...protectedPorts])
+  }
+
+  /**
+   * 更新受保护端口列表，运行中实时生效，无需重启应用
+   * @param raw 逗号分隔的端口号字符串，与设置面板中保存的格式一致
+   */
+  setProtectedPorts(raw: string): void {
+    // 解析规则与设置服务一致，逐项解析并丢弃非法数字
+    const parsed = new Set(
+      String(raw ?? '')
+        .split(',')
+        .map((s) => parseInt(s.trim(), 10))
+        .filter((n) => !isNaN(n)),
+    )
+    // 系统保留端口始终并入保护名单，与构造时的并集语义保持一致
+    this.protectedPorts = new Set([...HARD_PROTECTED_PORTS, ...parsed])
   }
 
   /* 获取系统编码（带缓存） */
