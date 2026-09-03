@@ -2,8 +2,8 @@
  * @Author: zhengrenfu
  * @Date: 2026-07-27
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-07-27
- * @FilePath: \src\views\ProjectView\modals\ConfigOpenersEditorModal.vue
+ * @LastEditTime: 2026-09-03
+ * @FilePath: \src\views\ProjectView\modals\settings\ConfigOpenersEditorModal.vue
  * @Description: 配置文件打开程序列表可视化编辑器，支持增删改
 -->
 <template>
@@ -52,6 +52,8 @@ const props = defineProps<{
 const entries = ref<ConfigOpener[]>([])
 const error = ref('')
 
+// 宿主对话框（SettingsModal）开启 destroy-on-close，本组件随对话框内容在每次关闭时销毁、
+// 打开时重新挂载，因此在此处加载即可保证每次打开都读取到最新配置
 onMounted(async () => {
   await load()
 })

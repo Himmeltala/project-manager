@@ -2,7 +2,7 @@
  * @Author: zhengrenfu
  * @Date: 2026-07-14
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-08-03
+ * @LastEditTime: 2026-09-03
  * @FilePath: \src\components\BottomPanel.vue
  * @Description: 底部面板容器，管理输出/日志/通知/任务四个子面板的显隐和拖拽
 -->
@@ -19,7 +19,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { SETTINGS_KEYS } from '@/ipc/keys'
-import { IPC } from '@/ipc/channels'
+import { IPC, IPC_EVENT } from '@/ipc/channels'
 
 import ProcessOutputPanel from '@/components/ProcessOutputPanel.vue'
 import AppMessagePanel from '@/components/AppMessagePanel.vue'
@@ -44,9 +44,30 @@ const panelRef = ref<HTMLElement>()
 const panelHeight = ref(150)
 let dragState: { startY: number; startH: number } | null = null
 
+// 面板高度边界，与设置面板中定义的约束保持一致
+const PANEL_HEIGHT_MIN = 80
+const PANEL_HEIGHT_MAX = 800
+
+const cleanups: (() => void)[] = []
+
 onMounted(async () => {
   const saved = await window.electronAPI.invoke(IPC.settings.get, SETTINGS_KEYS.bottomPanelHeight)
   if (saved) panelHeight.value = Number(saved) || 200
+
+  // 设置变更时实时同步面板高度，无需重启应用
+  cleanups.push(
+    window.electronAPI.on(IPC_EVENT.settingsChanged, ({ key, value }) => {
+      if (key !== SETTINGS_KEYS.bottomPanelHeight) return
+      const height = Number(value)
+      if (Number.isFinite(height)) {
+        panelHeight.value = Math.max(PANEL_HEIGHT_MIN, Math.min(PANEL_HEIGHT_MAX, height))
+      }
+    }),
+  )
+
+  // 统一存入全局清理列表，与其余面板组件保持一致的清理约定
+  window.__homeCleanups = window.__homeCleanups || []
+  window.__homeCleanups.push(...cleanups)
 })
 
 function onDragStart(e: MouseEvent) {
@@ -58,7 +79,7 @@ function onDragStart(e: MouseEvent) {
 function onDragMove(e: MouseEvent) {
   if (!dragState) return
   const delta = dragState.startY - e.clientY
-  panelHeight.value = Math.max(80, Math.min(800, dragState.startH + delta))
+  panelHeight.value = Math.max(PANEL_HEIGHT_MIN, Math.min(PANEL_HEIGHT_MAX, dragState.startH + delta))
 }
 
 async function onDragEnd() {
@@ -69,6 +90,7 @@ async function onDragEnd() {
 }
 
 onUnmounted(() => {
+  for (const fn of cleanups) fn()
   document.removeEventListener('mousemove', onDragMove)
   document.removeEventListener('mouseup', onDragEnd)
 })

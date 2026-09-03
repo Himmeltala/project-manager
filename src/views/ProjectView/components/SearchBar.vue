@@ -2,7 +2,7 @@
  * @Author: zhengrenfu
  * @Date: 2026-07-14
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-07-22 08:44:38
+ * @LastEditTime: 2026-09-03
  * @FilePath: \src\views\ProjectView\components\SearchBar.vue
  * @Description:
 -->
@@ -28,7 +28,8 @@
       >
     </el-button-group>
     <el-divider direction="vertical" />
-    <el-select v-model="scope" style="width: 130px" @change="onScopeChange">
+    <!-- 拉取项目期间禁用源切换，避免切换操作打断拉取任务 -->
+    <el-select v-model="scope" style="width: 130px" :disabled="pullStore.pulling" @change="onScopeChange">
       <el-option
         v-for="s in store.sources"
         :key="s.name"
@@ -45,6 +46,7 @@ import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { IPC } from '@/ipc/channels'
 
 import { useProjectStore } from '@/stores/project.store'
+import { usePullStore } from '@/stores/pull.store'
 import type { ElInput } from 'element-plus'
 
 const emit = defineEmits<{
@@ -54,6 +56,7 @@ const emit = defineEmits<{
 const searchInput = ref<InstanceType<typeof ElInput> | null>(null)
 
 const store = useProjectStore()
+const pullStore = usePullStore()
 const scope = ref('')
 
 // 本地搜索文字（带防抖），写回 store

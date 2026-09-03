@@ -2,11 +2,14 @@
  * @Author: zhengrenfu
  * @Date: 2026-07-14
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-07-22 08:54:26
+ * @LastEditTime: 2026-09-03
  * @FilePath: \src\router\index.ts
  * @Description: 路由配置
  */
 import { createRouter, createMemoryHistory } from 'vue-router'
+
+import { useWarning } from '@/composables/useMessage'
+import { usePullStore } from '@/stores/pull.store'
 
 const router = createRouter({
   history: createMemoryHistory(),
@@ -30,6 +33,17 @@ const router = createRouter({
       ],
     },
   ],
+})
+
+// 拉取项目期间禁止切换到其他页面，防止页面卸载后拉取任务失去结束信号
+router.beforeEach((to) => {
+  if (to.path === '/') return true
+  const pullStore = usePullStore()
+  if (pullStore.pulling) {
+    useWarning('正在拉取项目，暂不能切换页面，请先中断拉取任务')
+    return false
+  }
+  return true
 })
 
 export default router

@@ -2,7 +2,7 @@
  * @Author: zhengrenfu
  * @Date: 2026-07-14
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-08-03
+ * @LastEditTime: 2026-09-03
  * @FilePath: \src\views\ProjectView\index.vue
  * @Description: 项目视图，组合工具栏、搜索栏、筛选栏、表格和对话框逻辑
 -->
@@ -14,12 +14,38 @@
         <el-button :icon="Management" plain @click="openSourceManage">管理项目源</el-button>
       </div>
       <div>
-        <el-button :icon="Plus" plain @click="handleAddSource">添加项目源</el-button>
+        <el-button :icon="Plus" plain :disabled="pullStore.pulling" @click="handleAddSource">添加项目源</el-button>
       </div>
       <div>
-        <el-button :icon="Refresh" plain :loading="refreshing" @click="handleRefresh">刷新项目源</el-button>
+        <el-button :icon="Refresh" plain :loading="refreshing" :disabled="pullStore.pulling" @click="handleRefresh">
+          刷新项目源
+        </el-button>
       </div>
       <el-divider direction="vertical" />
+      <div style="flex: 1" />
+      <div>
+        <el-button
+          v-if="!pullStore.pulling"
+          :icon="Download"
+          plain
+          title="拉取当前项目源下所有项目的远程更新"
+          @click="handlePull"
+        >
+          拉取项目
+        </el-button>
+        <el-button
+          v-else
+          :icon="VideoPause"
+          type="danger"
+          plain
+          :loading="pullStore.cancelling"
+          :disabled="pullStore.cancelling"
+          title="中断当前拉取任务"
+          @click="handleCancel"
+        >
+          {{ pullStore.cancelling ? '正在中断' : '中断更新' }}
+        </el-button>
+      </div>
     </div>
 
     <!-- 搜索栏 -->
@@ -41,10 +67,11 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { IPC } from '@/ipc/channels'
 
-import { Refresh, Management, Plus } from '@element-plus/icons-vue'
+import { Refresh, Management, Plus, Download, VideoPause } from '@element-plus/icons-vue'
 import { useProjectStore } from '@/stores/project.store'
 import { useNotificationStore } from '@/stores/notification.store'
-import { useInfo } from '@/composables/useMessage'
+import { usePullStore } from '@/stores/pull.store'
+import { useInfo, useWarning, useError, useConfirm } from '@/composables/useMessage'
 import { useModal } from '@/composables/useModal'
 
 import SearchBar from '@/views/ProjectView/components/SearchBar.vue'
@@ -73,6 +100,7 @@ import { getCapabilities } from '@/composables/useProjectType'
 // #region Store & State
 const store = useProjectStore()
 const notifyStore = useNotificationStore()
+const pullStore = usePullStore()
 
 // 视图状态
 const allSourcesMode = ref(false)
@@ -133,6 +161,10 @@ async function detectAllBuildTools() {
 
 // 刷新项目源
 async function handleRefresh() {
+  if (pullStore.pulling) {
+    useWarning('正在拉取项目，请等待完成或先中断')
+    return
+  }
   if (refreshing.value) return
   refreshing.value = true
   try {
@@ -141,6 +173,49 @@ async function handleRefresh() {
     // ignore
   } finally {
     refreshing.value = false
+  }
+}
+// #endregion
+
+// #region 拉取项目
+// 发起拉取任务：仅允许在具体项目源模式下执行，成功后自动打开任务面板
+async function handlePull() {
+  if (allSourcesMode.value) {
+    useWarning('所有源模式下不可拉取项目，请先切换到具体项目源')
+    return
+  }
+  if (pullStore.pulling) return
+  try {
+    const taskId = await window.electronAPI.invoke(IPC.vcs.pullProjects)
+    if (!taskId) {
+      useWarning('没有可拉取的项目或已有拉取任务在进行')
+      return
+    }
+    pullStore.markStart(taskId)
+    window.dispatchEvent(new CustomEvent('openTaskPanel'))
+  } catch (e) {
+    console.error('发起拉取任务失败:', e)
+    useError(`发起拉取任务失败: ${(e as Error).message || e}`)
+  }
+}
+
+// 中断拉取任务：经确认后请求主进程在下一个项目边界处停止
+async function handleCancel() {
+  if (pullStore.cancelling) return
+  const ok = await useConfirm('中断拉取', '确认中断当前项目拉取？将在当前项目更新完成后停止', true)
+  if (!ok) return
+  const id = pullStore.taskId
+  if (!id) {
+    pullStore.markEnd()
+    return
+  }
+  pullStore.markCancelling(true)
+  try {
+    await window.electronAPI.invoke(IPC.task.cancel, id)
+  } catch (e) {
+    console.error('请求中断拉取失败:', e)
+    useError(`请求中断拉取失败: ${(e as Error).message || e}`)
+    pullStore.markCancelling(false)
   }
 }
 // #endregion
@@ -210,6 +285,10 @@ const actionContext = createActionContext({
 })
 // #endregion
 async function handleAddSource() {
+  if (pullStore.pulling) {
+    useWarning('正在拉取项目，暂不能添加项目源，请等待完成或先中断')
+    return
+  }
   addSourceModal.open(
     {},
     {
@@ -281,6 +360,20 @@ onMounted(async () => {
     }
   })
 
+  // 拉取任务正常结束：任务卡以"拉取项目:"开头时重置拉取状态
+  const c6 = window.electronAPI.on('event:taskCompleted', ({ name }) => {
+    if (name.startsWith('拉取项目:')) {
+      pullStore.markEnd()
+    }
+  })
+
+  // 拉取任务失败或被中断：同样重置拉取状态
+  const c7 = window.electronAPI.on('event:taskFailed', ({ name }) => {
+    if (name.startsWith('拉取项目:')) {
+      pullStore.markEnd()
+    }
+  })
+
   document.addEventListener('keydown', onKeydown)
   window.addEventListener('locateProject', onLocateProject)
 
@@ -308,6 +401,8 @@ onMounted(async () => {
   window.__homeCleanups.push(
     c1,
     c2,
+    c6,
+    c7,
     c4,
     () => window.removeEventListener('viewTaskDetail', c5),
     () => clearInterval(scriptTimer),

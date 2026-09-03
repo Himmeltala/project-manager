@@ -2,7 +2,7 @@
  * @Author: zhengrenfu
  * @Date: 2026-08-15
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-08-15
+ * @LastEditTime: 2026-09-03
  * @FilePath: \src\ipc\channels.ts
  * @Description: IPC 通道常量表，主进程与渲染进程共用，通道名改一处生效
  */
@@ -117,6 +117,7 @@ export const IPC = {
     openCommitGuiByPath: 'vcs:openCommitGuiByPath',
     openLogGuiByPath: 'vcs:openLogGuiByPath',
     openRepoBrowserByPath: 'vcs:openRepoBrowserByPath',
+    pullProjects: 'vcs:pullProjects',
     revisionInfo: 'vcs:revisionInfo',
     startLocalCheck: 'vcs:startLocalCheck',
     startRemoteCheck: 'vcs:startRemoteCheck',
@@ -136,6 +137,7 @@ export const IPC_EVENT = {
   portDetected: 'event:portDetected',
   projectStarted: 'event:projectStarted',
   projectStopped: 'event:projectStopped',
+  settingsChanged: 'event:settingsChanged',
   taskCompleted: 'event:taskCompleted',
   taskFailed: 'event:taskFailed',
   taskProgress: 'event:taskProgress',

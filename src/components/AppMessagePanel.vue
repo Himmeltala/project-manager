@@ -2,7 +2,7 @@
  * @Author: zhengrenfu
  * @Date: 2026-07-21
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-07-21 15:04:53
+ * @LastEditTime: 2026-09-03
  * @FilePath: \src\components\AppMessagePanel.vue
  * @Description: 应用消息面板，收集前端异常和信息提示，替代 ElMessage
 -->
@@ -24,7 +24,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { SETTINGS_KEYS } from '@/ipc/keys'
-import { IPC } from '@/ipc/channels'
+import { IPC, IPC_EVENT } from '@/ipc/channels'
 
 import { useSystemLogStore } from '@/stores/system-log.store'
 
@@ -62,8 +62,23 @@ async function scrollToBottom() {
 const cleanups: (() => void)[] = []
 
 onMounted(async () => {
+  // 读取已保存的最大日志行数，未配置时保持默认值
   const saved = await window.electronAPI.invoke(IPC.settings.get, SETTINGS_KEYS.systemLogMaxLines)
-  if (saved) maxLines.value = saved
+  const cap = Number(saved)
+  if (Number.isFinite(cap) && cap >= 1) maxLines.value = Math.floor(cap)
+
+  // 设置变更时实时调整上限，并裁剪已超出的旧行
+  cleanups.push(
+    window.electronAPI.on(IPC_EVENT.settingsChanged, ({ key, value }) => {
+      if (key !== SETTINGS_KEYS.systemLogMaxLines) return
+      const cap = Number(value)
+      if (!Number.isFinite(cap) || cap < 1) return
+      maxLines.value = Math.floor(cap)
+      if (lines.value.length > maxLines.value) {
+        lines.value = lines.value.slice(-maxLines.value)
+      }
+    }),
+  )
 
   // 系统消息（success/error/warning/info/plain）
   cleanups.push(

@@ -2,7 +2,7 @@
  * @Author: zhengrenfu
  * @Date: 2026-07-14
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-08-15 14:35:57
+ * @LastEditTime: 2026-09-03
  * @FilePath: /src/components/ProcessOutputPanel.vue
  * @Description: 进程输出面板，展示 Electron 子进程 stdout/stderr 实时输出
 -->
@@ -18,8 +18,12 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import { SETTINGS_KEYS } from '@/ipc/keys'
+import { IPC, IPC_EVENT } from '@/ipc/channels'
 
-const MAX_LINES = 5000
+// 输出行数上限的默认值，实际值在挂载时从设置读取
+const DEFAULT_MAX_LINES = 5000
+let maxLines = DEFAULT_MAX_LINES
 const outputEl = ref<HTMLElement>()
 
 let lineCount = 0
@@ -81,17 +85,19 @@ function flushDom() {
   pendingFragments = []
 
   outputEl.value.appendChild(fragment)
+  trimExcessLines()
+}
 
-  // 裁剪超出行数
-  if (lineCount > MAX_LINES) {
-    const excess = lineCount - MAX_LINES
-    let removed = 0
-    while (removed < excess && outputEl.value.firstChild) {
-      outputEl.value.removeChild(outputEl.value.firstChild)
-      removed++
-    }
-    lineCount -= removed
+// 移除超出上限的最旧行，保留最近 maxLines 行
+function trimExcessLines() {
+  if (!outputEl.value || lineCount <= maxLines) return
+  const excess = lineCount - maxLines
+  let removed = 0
+  while (removed < excess && outputEl.value.firstChild) {
+    outputEl.value.removeChild(outputEl.value.firstChild)
+    removed++
   }
+  lineCount -= removed
 }
 
 // 滚动到最新行
@@ -116,21 +122,35 @@ onMounted(async () => {
   // 保存滚动容器引用
   scrollEl = outputEl.value || null
 
-  // maxLines 仅在清空时参考，不动态调整
+  // 读取已保存的最大输出行数，未配置时保持默认值
+  const saved = await window.electronAPI.invoke(IPC.settings.get, SETTINGS_KEYS.systemLogMaxLines)
+  const cap = Number(saved)
+  if (Number.isFinite(cap) && cap >= 1) maxLines = Math.floor(cap)
 
   // 单行（兼容旧版，实际由 batch 覆盖）
   cleanups.push(
-    window.electronAPI.on('event:outputLine', (data) => {
+    window.electronAPI.on(IPC_EVENT.outputLine, (data) => {
       collectLine(formatLine(data))
     }),
   )
 
   // 批量（主进程 50ms 窗口合并发送）
   cleanups.push(
-    window.electronAPI.on('event:outputBatch', (batch) => {
+    window.electronAPI.on(IPC_EVENT.outputBatch, (batch) => {
       for (const data of batch) {
         collectLine(formatLine(data))
       }
+    }),
+  )
+
+  // 设置变更时实时调整上限，并立即裁剪已超出的旧行
+  cleanups.push(
+    window.electronAPI.on(IPC_EVENT.settingsChanged, ({ key, value }) => {
+      if (key !== SETTINGS_KEYS.systemLogMaxLines) return
+      const cap = Number(value)
+      if (!Number.isFinite(cap) || cap < 1) return
+      maxLines = Math.floor(cap)
+      trimExcessLines()
     }),
   )
 

@@ -1,3 +1,11 @@
+/*
+ * @Author: zhengrenfu
+ * @Date: 2026-09-03
+ * @LastEditors: zhengrenfu
+ * @LastEditTime: 2026-09-03
+ * @FilePath: \electron\main.ts
+ * @Description: 主进程入口，负责窗口创建、IPC 注册与后台任务编排
+ */
 // #region Imports
 import { app, BrowserWindow, Menu, ipcMain, dialog } from 'electron'
 import { SETTINGS_KEYS } from '@/ipc/keys'
@@ -14,7 +22,7 @@ import { ProcessManager } from '@electron/services/runtime/process-manager.servi
 import { ProjectService } from '@electron/services/project/project.service'
 import { SourceManager } from '@electron/services/project/source-manager.service'
 import { TaskService } from '@electron/services/runtime/task.service'
-import { OperationRunner } from '@electron/services/runtime/operation-runner.service'
+import { OperationRunner, createTaskOpCtx } from '@electron/services/runtime/operation-runner.service'
 import { NotificationService } from '@electron/services/notification.service'
 import { UpdateService } from '@electron/services/update.service'
 import { AppSettings } from '@electron/services/core/settings.service'
@@ -22,7 +30,7 @@ import { ProjectRepository } from '@electron/services/project/project-repository
 import { vcsRegistry } from '@electron/services/version-control/registry'
 import { SvnProvider } from '@electron/services/version-control/svn/index'
 import { GitProvider } from '@electron/services/version-control/git/index'
-import type { SettingsGetter } from '@electron/services/version-control/registry'
+import type { SettingsGetter, VcsUpdateResult } from '@electron/services/version-control/registry'
 import { ensureDataDir, getSourceRoot, scanDataDir, deleteItem } from '@electron/services/core/data-dir.service'
 import { createStore, storeGet, storeSet, storeDelete, storeKeys } from '@electron/services/core/store.service'
 import type { Store } from '@electron/services/core/store.service'
@@ -71,6 +79,9 @@ const MAX_OUTPUT_BUFFER = 500
 // VCS 定时检查
 let remoteCheckTimer: NodeJS.Timeout | null = null
 let localCheckTimer: NodeJS.Timeout | null = null
+
+// 拉取项目执行标记，为 true 时禁止切换、刷新或扫描项目源，避免与拉取快照错位
+let vcsPullInProgress = false
 
 function flushOutputBuffer() {
   if (outputBuffer.length > 0) {
@@ -170,6 +181,43 @@ function autoStartVcsChecks(): void {
   if (localEnabled) {
     const interval = settings.get(SETTINGS_KEYS.scheduledChecks.localIntervalMinutes, 15)
     startLocalCheckTimer(interval)
+  }
+}
+// #endregion
+
+// #region Settings live re-apply
+/**
+ * 设置项保存后即时下发生效，避免部分配置只在启动时读取一次、改动需重启才生效
+ * @param key 设置键
+ * @param value 新的设置值
+ */
+function applySettingLive(key: string, value: unknown): void {
+  switch (key) {
+    case SETTINGS_KEYS.theme:
+      // 主题即时切换，沿用原有事件通道通知渲染层
+      mainWindow?.webContents.send(IPC_EVENT.themeChanged, value)
+      break
+    case SETTINGS_KEYS.tasks.maxConcurrency:
+      // 任务并发上限实时更新，排队中的任务按新上限逐批启动
+      taskService.setMaxConcurrency(Number(value))
+      break
+    case SETTINGS_KEYS.protectedPorts:
+      // 保护端口名单实时更新，后续的杀端口请求按新名单拦截
+      processMgr.setProtectedPorts(String(value ?? ''))
+      break
+    case SETTINGS_KEYS.update.url:
+      // 更新源地址实时生效；检查类型与检查频率按产品设计仍保持启动时读取
+      updateService.setUrl(String(value ?? ''))
+      break
+    default:
+      break
+  }
+  // 定时检查类设置统一先停再启，使改动立即生效。
+  // 停止与启动均为幂等操作，与设置弹窗内的重复重启并存时最终状态一致
+  const scheduledKeys = Object.values(SETTINGS_KEYS.scheduledChecks) as string[]
+  if (scheduledKeys.includes(key)) {
+    stopVcsChecks()
+    autoStartVcsChecks()
   }
 }
 // #endregion
@@ -314,6 +362,8 @@ function registerIpc(): void {
   ipcMain.handle(IPC.source.getActive, () => sourceMgr.getActiveSourceName())
   ipcMain.handle('source:getActiveInfo', () => sourceMgr.getActiveSource())
   ipcMain.handle(IPC.source.switch, (_e, name) => {
+    // 拉取项目执行期间禁止切换项目源
+    if (vcsPullInProgress) return false
     if (sourceMgr.switchSource(name)) {
       const configPath = sourceMgr.getActiveConfigPath()
       const projects = ProjectRepository.load(configPath)
@@ -332,6 +382,8 @@ function registerIpc(): void {
     sourceMgr.createSourceFromDirectory(name, directory),
   )
   ipcMain.handle(IPC.source.startScanTask, (_e, name, directory) => {
+    // 拉取项目执行期间禁止扫描并切换到新项目源
+    if (vcsPullInProgress) return false
     const taskId = taskService.addTask(`扫描项目源: ${name}`, async (report) => {
       report('正在扫描目录...', 10)
       const ok = await sourceMgr.createSourceFromDirectory(name, directory)
@@ -362,6 +414,8 @@ function registerIpc(): void {
     return taskId
   })
   ipcMain.handle(IPC.source.refreshCurrent, (_e, name) => {
+    // 拉取项目执行期间禁止刷新项目源，避免活列表变化与拉取快照错位
+    if (vcsPullInProgress) return false
     const sourceName = name || sourceMgr.getActiveSourceName()
     taskService.addTask(`刷新项目源: ${sourceName}`, async (report) => {
       report(`正在刷新项目源: ${sourceName}`, 10)
@@ -375,6 +429,106 @@ function registerIpc(): void {
       report(`刷新完成，共 ${projects.length} 个项目`, 100)
     })
     return true
+  })
+
+  // 拉取当前项目源中的所有版本控制项目，逐个执行 svn update 或 git pull
+  ipcMain.handle(IPC.vcs.pullProjects, async (_e) => {
+    // 已有拉取任务在执行时拒绝重复触发
+    if (vcsPullInProgress) {
+      notificationService.createNotification('warning', '已有拉取任务在执行', '')
+      return null
+    }
+    const sourceName = sourceMgr.getActiveSourceName()
+    // 快照当前源中检测到 VCS 的项目，执行期间不读取活列表，避免与刷新并发错位
+    const targets: { name: string; path: string; label: string }[] = []
+    for (const p of projectService.projects) {
+      const provider = vcsRegistry.detect(p.path)
+      if (provider) targets.push({ name: p.name, path: p.path, label: provider.label })
+    }
+    if (targets.length === 0) {
+      notificationService.createNotification('warning', '当前项目源没有可拉取的版本控制项目', '')
+      return null
+    }
+    vcsPullInProgress = true
+    const total = targets.length
+    const taskId = taskService.addTask(`拉取项目: ${sourceName}`, async (report) => {
+      let success = 0
+      let conflict = 0
+      const failed: string[] = []
+      try {
+        report(`开始拉取项目源: ${sourceName}，共 ${total} 个项目`, 5)
+        for (let cur = 1; cur <= total; cur++) {
+          const target = targets[cur - 1]
+          // 项目执行前先做边界上报：任务取消在此抛出，实现项目之间即时中止
+          report(`拉取 [${cur}/${total}]: ${target.name}`)
+          // 项目级上下文：内部行与百分比统一折算为整体进度，文案带项目序号前缀
+          const ctx = createTaskOpCtx(report, {
+            initialMessage: `拉取 [${cur}/${total}]: ${target.name}`,
+            formatLine: (line) => `拉取 [${cur}/${total}] ${target.name}: ${line}`,
+            mapPercent: (inner) => Math.floor(((cur - 1 + inner / 100) / total) * 100),
+          })
+          let result: VcsUpdateResult
+          try {
+            // 透传进度钩子，长任务内部的行与百分比实时折算到整体进度条
+            result = await projectService.vcsUpdateByPath(target.path, target.name, {
+              onLine: ctx.line,
+              onPercent: ctx.percent,
+            })
+          } finally {
+            // 项目结束后停用上下文，防止遗留节流定时器串扰下一个项目
+            ctx.dispose()
+          }
+          // report 在任务取消时抛错，拉取在项目边界处中止
+          if (result.status === 'ok') {
+            success++
+            mainWindow?.webContents.send(IPC_EVENT.output, {
+              type: 'success',
+              text: `[${cur}/${total}] ${target.name}: ${target.label}拉取完成`,
+            })
+            report(`拉取 [${cur}/${total}] ${target.name}: ${target.label}拉取完成`, Math.floor((cur / total) * 100))
+          } else if (result.status === 'conflict') {
+            conflict++
+            notificationService.createNotification(
+              'vcs_conflict',
+              `${target.label} 冲突: ${target.name}`,
+              '拉取完成后存在合并冲突，请手动解决',
+              target.name,
+              true,
+            )
+            mainWindow?.webContents.send(IPC_EVENT.output, {
+              type: 'warning',
+              text: `[${cur}/${total}] ${target.name}: ${target.label}拉取完成，存在合并冲突`,
+            })
+            report(
+              `拉取 [${cur}/${total}] ${target.name}: ${target.label}存在合并冲突，需手动解决`,
+              Math.floor((cur / total) * 100),
+            )
+          } else {
+            const firstLine =
+              (result.text || '')
+                .split('\n')
+                .find((line) => line.trim())
+                ?.trim() || ''
+            failed.push(`${target.name}: ${firstLine || result.text || '未知错误'}`)
+            mainWindow?.webContents.send(IPC_EVENT.output, {
+              type: 'error',
+              text: `[${cur}/${total}] ${target.name}: ${target.label}拉取失败`,
+            })
+            report(`拉取 [${cur}/${total}] ${target.name}: ${target.label}拉取失败`, Math.floor((cur / total) * 100))
+          }
+        }
+        if (failed.length > 0) {
+          report(`拉取结束: 共 ${total} 个，成功 ${success}，冲突 ${conflict}，失败 ${failed.length}`, 100)
+          // 抛错后由任务框架触发 taskFailed，自动生成错误通知与错误日志
+          throw new Error(`拉取失败 ${failed.length} 个项目: ${failed.join('；')}`)
+        }
+        report(`拉取完成: 共 ${total} 个，成功 ${success}，冲突 ${conflict}`, 100)
+      } finally {
+        // 任务结束（含失败与取消）后释放标记，允许后续再次拉取
+        vcsPullInProgress = false
+      }
+    })
+    return taskId
   })
 
   // ── process (lifecycle) ──
@@ -441,7 +595,15 @@ function registerIpc(): void {
   ipcMain.handle(IPC.projectMgr.build, async (_e, idx, command, zipName) => {
     const proj = projectService.getProjectByIndex(idx)
     const name = proj?.name || `#${idx}`
-    taskService.addTask(`构建:${name}`, (report) => projectService.buildProject(idx, command, zipName, report))
+    taskService.addTask(`构建:${name}`, async (report) => {
+      // 里程碑进度由 buildProject 的 report 回调继续上报，构建输出行节流同步到任务卡片
+      const ctx = createTaskOpCtx(report)
+      try {
+        await projectService.buildProject(idx, command, zipName, report, ctx.line)
+      } finally {
+        ctx.dispose()
+      }
+    })
     return true
   })
   ipcMain.handle(IPC.projectMgr.scanBuildArtifacts, (_e, idx) => projectService.scanBuildArtifacts(idx))
@@ -450,7 +612,12 @@ function registerIpc(): void {
     const name = proj?.name || `#${idx}`
     opRunner.run(`清理构建产物:${name}`, {
       startMsg: `开始清理 ${paths.length} 个构建产物`,
-      work: () => projectService.cleanArtifacts(idx, paths),
+      // 每清理完一项推进一次整体进度，文案与进度同步刷新
+      work: (ctx) =>
+        projectService.cleanArtifacts(idx, paths, (done, total) => {
+          ctx.line(`已清理 ${done}/${total} 个构建产物`)
+          ctx.percent(Math.round((done / total) * 100))
+        }),
       doneMsg: '清理完成',
       failMsg: '清理失败',
     })
@@ -462,7 +629,12 @@ function registerIpc(): void {
     const name = proj?.name || `#${idx}`
     opRunner.run(`清理依赖目录:${name}`, {
       startMsg: `开始清理依赖目录: ${name}`,
-      work: () => projectService.cleanDependencies(idx),
+      // 每清理完一个目录推进一次整体进度，文案与进度同步刷新
+      work: (ctx) =>
+        projectService.cleanDependencies(idx, (done, total) => {
+          ctx.line(`已清理 ${done}/${total} 个依赖目录`)
+          ctx.percent(Math.round((done / total) * 100))
+        }),
       doneMsg: '依赖目录清理完成',
       failMsg: '清理失败',
     })
@@ -516,33 +688,60 @@ function registerIpc(): void {
     const proj = projectService.getProjectByIndex(idx)
     if (!proj) return false
     const name = proj.name
-    opRunner.runVcsUpdate(`VCS更新:${name}`, name, vcsRegistry.detect(proj.path)?.label || 'VCS', () =>
-      projectService.vcsUpdate(idx),
+    opRunner.runVcsUpdate(`VCS更新:${name}`, name, vcsRegistry.detect(proj.path)?.label || 'VCS', (ctx) =>
+      projectService.vcsUpdate(idx, { onLine: ctx.line, onPercent: ctx.percent }),
     )
     return true
   })
   ipcMain.handle(IPC.vcs.updateRange, async (_e, params) => {
     const total = params.endIdx - params.startIdx + 1
     taskService.addTask(`批量更新(${total}项)`, async (report) => {
+      let success = 0
+      let conflict = 0
       const failed: string[] = []
       for (let i = params.startIdx; i <= params.endIdx; i++) {
         const idx = i + 1
         const cur = i - params.startIdx + 1
         const proj = projectService.getProjectByIndex(idx)
         const pn = proj?.name || `#${idx}`
-        report(`更新 [${cur}/${total}]: ${pn}`, Math.floor((cur / total) * 100))
-        const result = await projectService.vcsUpdate(idx)
-        if (result.status === 'error') failed.push(`${pn}: ${result.text || '未知错误'}`)
+        // 项目执行前先做边界上报：任务取消在此抛出，实现项目之间即时中止
+        report(`更新 [${cur}/${total}]: ${pn}`)
+        // 项目级上下文：内部行与百分比统一折算为整体进度，文案带项目序号前缀
+        const ctx = createTaskOpCtx(report, {
+          initialMessage: `更新 [${cur}/${total}]: ${pn}`,
+          formatLine: (line) => `更新 [${cur}/${total}] ${pn}: ${line}`,
+          mapPercent: (inner) => Math.floor(((cur - 1 + inner / 100) / total) * 100),
+        })
+        try {
+          const result = await projectService.vcsUpdate(idx, { onLine: ctx.line, onPercent: ctx.percent })
+          // 项目边界上报在项目完成之后推进整体进度，取消错误在此抛出
+          if (result.status === 'ok') {
+            success++
+            report(`更新完成 [${cur}/${total}] ${pn}`, Math.floor((cur / total) * 100))
+          } else if (result.status === 'conflict') {
+            conflict++
+            report(`更新完成 [${cur}/${total}] ${pn}，存在合并冲突`, Math.floor((cur / total) * 100))
+          } else {
+            failed.push(`${pn}: ${result.text || '未知错误'}`)
+            report(`更新失败 [${cur}/${total}] ${pn}`, Math.floor((cur / total) * 100))
+          }
+        } finally {
+          // 项目结束后停用上下文，防止遗留节流定时器串扰下一个项目
+          ctx.dispose()
+        }
       }
-      if (failed.length > 0) throw new Error(`${failed.length} 个项目更新失败:\\n${failed.join('\\n')}`)
-      report(`批量更新完成，共 ${total} 个项目`, 100)
+      if (failed.length > 0) {
+        report(`批量更新结束: 成功 ${success}，冲突 ${conflict}，失败 ${failed.length}`, 100)
+        throw new Error(`${failed.length} 个项目更新失败:\n${failed.join('\n')}`)
+      }
+      report(`批量更新完成，共 ${total} 个项目，成功 ${success}，冲突 ${conflict}`, 100)
     })
     return true
   })
   ipcMain.handle('vcs:log', async (_e, idx, limit) => projectService.vcsLog(idx, limit))
   ipcMain.handle(IPC.vcs.updateByPath, async (_e, path, name) => {
-    opRunner.runVcsUpdate(`VCS更新:${name}`, name, vcsRegistry.detect(path)?.label || 'VCS', () =>
-      projectService.vcsUpdateByPath(path, name),
+    opRunner.runVcsUpdate(`VCS更新:${name}`, name, vcsRegistry.detect(path)?.label || 'VCS', (ctx) =>
+      projectService.vcsUpdateByPath(path, name, { onLine: ctx.line, onPercent: ctx.percent }),
     )
     return true
   })
@@ -644,11 +843,19 @@ function registerIpc(): void {
     const name = proj?.name || `#${idx}`
     const modeLabels: Record<string, string> = { svn: 'SVN', git: 'Git', copy: '复制' }
     const modeLabel = modeLabels[params.mode] || params.mode
+    const startMsg = `开始迁移: ${name} (${modeLabel})`
     taskService.addTask(`迁移项目:${name}`, async (report) => {
-      report(`开始迁移: ${name} (${modeLabel})`, 5)
-      const ok = await projectService.migrateProject(idx, params)
-      if (ok) report(`迁移完成: ${name}`, 100)
-      else throw new Error(`迁移失败: ${name}`)
+      report(startMsg, 5)
+      const ctx = createTaskOpCtx(report, { initialMessage: `迁移中: ${name} (${modeLabel})` })
+      try {
+        // 迁移过程的逐行输出已由服务侧实时发往输出面板，此处仅同步任务卡片文案与进度
+        const ok = await projectService.migrateProject(idx, params, { onLine: ctx.line, onPercent: ctx.percent })
+        ctx.flushNow()
+        if (ok) report(`迁移完成: ${name}`, 100)
+        else throw new Error(`迁移失败: ${name}`)
+      } finally {
+        ctx.dispose()
+      }
     })
     return true
   })
@@ -666,7 +873,9 @@ function registerIpc(): void {
   ipcMain.handle(IPC.settings.get, (_e, key) => settings.get(key))
   ipcMain.handle(IPC.settings.set, (_e, key, value) => {
     settings.set(key, value)
-    if (key === 'theme') mainWindow?.webContents.send(IPC_EVENT.themeChanged, value)
+    applySettingLive(key, value)
+    // 广播设置变更，渲染层面板据此实时应用新值
+    mainWindow?.webContents.send(IPC_EVENT.settingsChanged, { key, value })
   })
   ipcMain.handle(IPC.settings.getSchema, () => settings.getSchema())
   ipcMain.handle('settings:getPath', () => (settings as any)['path'] || '')

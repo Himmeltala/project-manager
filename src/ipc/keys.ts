@@ -2,7 +2,7 @@
  * @Author: zhengrenfu
  * @Date: 2026-08-15
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-08-15
+ * @LastEditTime: 2026-09-03
  * @FilePath: \src\ipc\keys.ts
  * @Description: 设置与存储键名常量，主进程与渲染进程共用
  */
@@ -12,8 +12,11 @@ export const SETTINGS_KEYS = {
   theme: 'theme',
   openers: 'openers',
   bottomPanelHeight: 'bottom_panel.height',
-  systemLogMaxLines: 'system_log.max_lines',
+  // 路径与 schema 和种子配置保持一致，原值 system_log.max_lines 为历史遗留错误
+  systemLogMaxLines: 'output.max_lines',
   buildtoolConfigPriority: 'buildtool.config_priority',
+  protectedPorts: 'protected_ports',
+  lastSource: 'last_source',
   tasks: {
     maxConcurrency: 'tasks.max_concurrency',
     maxCount: 'tasks.max_count',
@@ -21,6 +24,12 @@ export const SETTINGS_KEYS = {
   notifications: {
     enabled: 'notifications.enabled',
     maxCount: 'notifications.max_count',
+    showVcsRemote: 'notifications.show_vcs_remote',
+    showLocalChanges: 'notifications.show_local_changes',
+    showVcsConflict: 'notifications.show_vcs_conflict',
+    showInfo: 'notifications.show_info',
+    showWarning: 'notifications.show_warning',
+    showError: 'notifications.show_error',
   },
   svn: {
     path: 'svn.path',

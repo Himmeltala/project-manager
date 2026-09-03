@@ -2,7 +2,7 @@
  * @Author: zhengrenfu
  * @Date: 2026-07-20
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-08-03
+ * @LastEditTime: 2026-09-03
  * @FilePath: \electron\services\project.service.ts
  * @Description: 项目管理器业务逻辑服务
  */
@@ -27,7 +27,12 @@ import { ProcessManager } from '@electron/services/runtime/process-manager.servi
 import { projectTypeRegistry } from '@electron/services/project-type/registry'
 import { javaFrameworkRegistry } from '@electron/services/project-type/maven/framework/index'
 import { TomcatFramework } from '@electron/services/project-type/maven/framework/tomcat'
-import type { VcsUpdateResult, VcsRegistryImpl, VcsProvider } from '@electron/services/version-control/registry'
+import type {
+  VcsUpdateResult,
+  VcsRegistryImpl,
+  VcsProvider,
+  VcsProgressHook,
+} from '@electron/services/version-control/registry'
 
 /* 模块级编码缓存，一旦检测缓存 */
 let cachedSystemEncoding: string | null = null
@@ -579,11 +584,21 @@ export class ProjectService extends EventEmitter {
   // #endregion
 
   // #region Build
+  /**
+   * 构建项目并按需压缩产物目录，构建输出逐行实时进入输出面板
+   * @param {number} idx 项目在列表中的序号
+   * @param {string} [command] 自定义构建命令，省略时使用项目类型的默认命令
+   * @param {string} [zipName] 自定义压缩包名，支持 {{timestamp}} 占位符
+   * @param {(msg: string, pct?: number) => void} [report] 任务进度回调，提供时走流式构建
+   * @param {(line: string) => void} [onLine] 构建输出行回调，供任务卡片等场景同步展示实时行
+   * @returns {Promise<boolean>} 构建与压缩是否成功
+   */
   async buildProject(
     idx: number,
     command?: string,
     zipName?: string,
     report?: (msg: string, pct?: number) => void,
+    onLine?: (line: string) => void,
   ): Promise<boolean> {
     const proj = this.getProjectByIndex(idx)
     if (!proj || !existsSync(proj.path)) return false
@@ -593,8 +608,9 @@ export class ProjectService extends EventEmitter {
     const outputDir = join(proj.path, profile.buildOutputDir)
     const extraEnv = this.makeBuildEnv(proj)
 
-    if (report) {
-      return this.buildSync(proj, cmd, outputDir, zipName, report, extraEnv)
+    // 有进度或行回调时走流式构建，保证 report 与 onLine 都能实时触发
+    if (report || onLine) {
+      return this.buildSync(proj, cmd, outputDir, zipName, report, extraEnv, onLine)
     }
 
     // Async build（非阻塞）
@@ -609,26 +625,39 @@ export class ProjectService extends EventEmitter {
     }
   }
 
+  /**
+   * 以流式进程执行构建并压缩产物目录，输出逐行实时进入输出面板
+   * @param {Project} proj 项目信息
+   * @param {string} command 构建命令
+   * @param {string} outputDir 构建产物目录
+   * @param {string | undefined} zipName 自定义压缩包名
+   * @param {(msg: string, pct?: number) => void} [report] 任务进度回调，可省略
+   * @param {Record<string, string>} [extraEnv] 构建附加环境变量
+   * @param {(line: string) => void} [onLine] 构建输出行回调，可省略
+   * @returns {Promise<boolean>} 构建与压缩是否成功
+   */
   private async buildSync(
     proj: Project,
     command: string,
     outputDir: string,
     zipName: string | undefined,
-    report: (msg: string, pct?: number) => void,
+    report?: (msg: string, pct?: number) => void,
     extraEnv?: Record<string, string>,
+    onLine?: (line: string) => void,
   ): Promise<boolean> {
-    report('开始构建: ' + proj.name, 5)
-    // 流式 spawn，实时输出到面板
+    report?.('开始构建: ' + proj.name, 5)
+    // 流式 spawn，实时输出到面板，并同步转发给调用方行回调
     const { text, exitCode } = await execAsyncStream(command, { cwd: proj.path, timeout: 600000, extraEnv }, (line) => {
       this.emit('outputLine', { name: proj.name, line })
+      onLine?.(line)
     })
     if (exitCode !== 0) {
       throw new Error(text.trim() || '构建失败（进程退出码非零）')
     }
-    report('构建成功，正在压缩产物目录...', 60)
+    report?.('构建成功，正在压缩产物目录...', 60)
     if (!existsSync(outputDir)) throw new Error('未找到产物目录')
     await this.zipDist(proj.name, proj.path, outputDir, zipName)
-    report(`构建并压缩完成: ${proj.name}`, 100)
+    report?.(`构建并压缩完成: ${proj.name}`, 100)
     return true
   }
 
@@ -737,9 +766,22 @@ export class ProjectService extends EventEmitter {
     return result
   }
 
-  async cleanArtifacts(idx: number, itemPaths: string[]): Promise<number> {
+  /**
+   * 清理指定的构建产物（目录或文件），每处理完一项回调一次进度
+   * @param {number} idx 项目在列表中的序号
+   * @param {string[]} itemPaths 待清理的构建产物路径列表
+   * @param {(done: number, total: number) => void} [onStep] 进度回调，done 为已处理项数，total 为待清理总数
+   * @returns {Promise<number>} 实际清理成功的项数
+   */
+  async cleanArtifacts(
+    idx: number,
+    itemPaths: string[],
+    onStep?: (done: number, total: number) => void,
+  ): Promise<number> {
     let deleted = 0
-    for (const fullPath of itemPaths) {
+    const total = itemPaths.length
+    for (let i = 0; i < itemPaths.length; i++) {
+      const fullPath = itemPaths[i]
       try {
         const st = await stat(fullPath)
         if (st.isDirectory()) {
@@ -749,8 +791,9 @@ export class ProjectService extends EventEmitter {
         }
         deleted++
       } catch {
-        // ignore
+        // 单项清理失败时忽略，继续处理后续项
       }
+      onStep?.(i + 1, total)
     }
     return deleted
   }
@@ -770,15 +813,23 @@ export class ProjectService extends EventEmitter {
     return result
   }
 
-  async cleanDependencies(idx: number): Promise<boolean> {
+  /**
+   * 清理项目的依赖目录（按项目类型配置的目录名列表），每清理完一个目录回调一次进度
+   * @param {number} idx 项目在列表中的序号
+   * @param {(done: number, total: number) => void} [onStep] 进度回调，done 为已处理目录数，total 为需清理的目录总数
+   * @returns {Promise<boolean>} 是否全部清理成功
+   */
+  async cleanDependencies(idx: number, onStep?: (done: number, total: number) => void): Promise<boolean> {
     const proj = this.getProjectByIndex(idx)
     if (!proj) return false
 
     const profile = projectTypeRegistry.getOrDefault(proj.projectType).getProfile()
+    // 先枚举实际存在的依赖目录，确保清理开始前总数已知
+    const existingDirs = profile.cleanDirs.map((dirName) => join(proj.path, dirName)).filter((full) => existsSync(full))
+    const total = existingDirs.length
     let allOk = true
-    for (const dirName of profile.cleanDirs) {
-      const full = join(proj.path, dirName)
-      if (!existsSync(full)) continue
+    for (let i = 0; i < existingDirs.length; i++) {
+      const full = existingDirs[i]
       try {
         await execAsync(`rmdir /s /q "${full}"`, { windowsHide: true, timeout: 60000 })
       } catch {
@@ -788,6 +839,7 @@ export class ProjectService extends EventEmitter {
           allOk = false
         }
       }
+      onStep?.(i + 1, total)
     }
     return allOk
   }
@@ -903,32 +955,53 @@ export class ProjectService extends EventEmitter {
   // #endregion
 
   // #region VCS
-  async vcsUpdate(idx: number): Promise<VcsUpdateResult> {
+
+  /**
+   * 构造透传给 VCS 提供者的进度钩子，每行输出先实时发送到输出面板，再转发给调用方钩子
+   * 调用方不传钩子时仅保留面板实时输出，保证原有更新流程仍能看到过程日志
+   * @param {number} index 项目在列表中的序号（跨源项目传 0）
+   * @param {string} name 项目显示名
+   * @param {VcsProgressHook} [hooks] 调用方提供的进度钩子，可省略
+   * @returns {VcsProgressHook} 包装后的进度钩子
+   */
+  private wrapVcsHooks(index: number, name: string, hooks?: VcsProgressHook): VcsProgressHook {
+    return {
+      onLine: (line: string) => {
+        this.emit('outputLine', { index, name, line })
+        hooks?.onLine?.(line)
+      },
+      onPercent: hooks?.onPercent,
+    }
+  }
+
+  /**
+   * 更新指定项目的版本库，输出逐行实时进入输出面板
+   * @param {number} idx 项目在列表中的序号
+   * @param {VcsProgressHook} [hooks] 进度钩子，接收逐行输出与进度百分比，可省略
+   * @returns {Promise<VcsUpdateResult>} 更新结果，与 VCS 提供者返回一致
+   */
+  async vcsUpdate(idx: number, hooks?: VcsProgressHook): Promise<VcsUpdateResult> {
     const proj = this.getProjectByIndex(idx)
     if (!proj) return { status: 'error', text: '项目不存在' }
 
     const vcs = this.vcsRegistry.detect(proj.path)
     if (!vcs) return { status: 'error', text: '未检测到版本控制系统' }
 
-    const result = await vcs.update(proj.path)
-    if (result.text) {
-      this.emit('outputLine', { index: idx, name: proj.name, line: result.text })
-    }
-    return result
+    return vcs.update(proj.path, this.wrapVcsHooks(idx, proj.name, hooks))
   }
 
   /**
-   * 根据项目路径执行 VCS 更新，用于跨源项目
+   * 根据项目路径执行 VCS 更新，用于跨源项目，输出逐行实时进入输出面板
+   * @param {string} projectPath 项目路径
+   * @param {string} projectName 项目显示名
+   * @param {VcsProgressHook} [hooks] 进度钩子，接收逐行输出与进度百分比，可省略
+   * @returns {Promise<VcsUpdateResult>} 更新结果，与 VCS 提供者返回一致
    */
-  async vcsUpdateByPath(projectPath: string, projectName: string): Promise<VcsUpdateResult> {
+  async vcsUpdateByPath(projectPath: string, projectName: string, hooks?: VcsProgressHook): Promise<VcsUpdateResult> {
     const vcs = this.vcsRegistry.detect(projectPath)
     if (!vcs) return { status: 'error', text: '未检测到版本控制系统' }
 
-    const result = await vcs.update(projectPath)
-    if (result.text) {
-      this.emit('outputLine', { index: 0, name: projectName, line: result.text })
-    }
-    return result
+    return vcs.update(projectPath, this.wrapVcsHooks(0, projectName, hooks))
   }
 
   async vcsLog(idx: number, limit = 20): Promise<'ok' | 'error'> {
@@ -963,7 +1036,14 @@ export class ProjectService extends EventEmitter {
     return vcs.getInfo(proj.path)
   }
 
-  async migrateProject(idx: number, params: MigrationParams): Promise<boolean> {
+  /**
+   * 迁移项目到目标目录，支持 VCS 检出与目录复制两种模式
+   * @param {number} idx 项目在列表中的序号
+   * @param {MigrationParams} params 迁移参数（模式、目标目录与 SVN 地址）
+   * @param {VcsProgressHook} [hooks] 进度钩子，VCS 模式接收逐行输出与进度百分比，可省略
+   * @returns {Promise<boolean>} 迁移是否成功
+   */
+  async migrateProject(idx: number, params: MigrationParams, hooks?: VcsProgressHook): Promise<boolean> {
     const proj = this.getProjectByIndex(idx)
     if (!proj) return false
 
@@ -976,10 +1056,10 @@ export class ProjectService extends EventEmitter {
       return false
     }
 
-    // VCS 迁移（svn/git）通过注册表委托给对应提供者
+    // VCS 迁移（svn/git）通过注册表委托给对应提供者，输出逐行实时进入输出面板
     const vcsProvider = this.vcsRegistry.get(mode)
     if (vcsProvider?.migrate && svnUrl) {
-      return vcsProvider.migrate(svnUrl, targetDir)
+      return vcsProvider.migrate(svnUrl, targetDir, this.wrapVcsHooks(0, proj.name, hooks))
     }
 
     if (mode === 'copy') {
@@ -997,23 +1077,43 @@ export class ProjectService extends EventEmitter {
         '*.zip',
         'target',
       ]
+      // 目录名是否需要忽略，判断逻辑须在统计与复制两处保持一致
+      const isIgnored = (entryName: string): boolean =>
+        ignorePatterns.some((p) => entryName.toLowerCase().includes(p.replace('*', '').toLowerCase()))
+
       try {
+        // 先统计待复制文件总数，再按每 50 个文件回报一次百分比进度
+        const countFiles = (src: string): number => {
+          let total = 0
+          for (const entry of readdirSync(src, { withFileTypes: true })) {
+            if (isIgnored(entry.name)) continue
+            total += entry.isDirectory() ? countFiles(join(src, entry.name)) : 1
+          }
+          return total
+        }
+        const fileTotal = hooks?.onPercent ? countFiles(proj.path) : 0
+        let copied = 0
         const copyRecursive = (src: string, dest: string) => {
           mkdirSync(dest, { recursive: true })
           for (const entry of readdirSync(src, { withFileTypes: true })) {
-            if (ignorePatterns.some((p) => entry.name.toLowerCase().includes(p.replace('*', '').toLowerCase())))
-              continue
+            if (isIgnored(entry.name)) continue
             const srcPath = join(src, entry.name)
             const destPath = join(dest, entry.name)
             if (entry.isDirectory()) {
               copyRecursive(srcPath, destPath)
             } else {
               copyFileSync(srcPath, destPath)
+              copied++
+              if (fileTotal > 0 && copied % 50 === 0) {
+                hooks?.onPercent?.(Math.round((copied / fileTotal) * 100))
+              }
             }
           }
         }
 
         copyRecursive(proj.path, targetDir)
+        hooks?.onLine?.(`已复制 ${copied} 个文件`)
+        hooks?.onPercent?.(100)
         return true
       } catch {
         return false

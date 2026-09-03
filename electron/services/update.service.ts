@@ -2,7 +2,7 @@
  * @Author: zhengrenfu
  * @Date: 2026-07-20
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-07-20
+ * @LastEditTime: 2026-09-03
  * @FilePath: \electron\services\update.service.ts
  * @Description: 更新检查与下载服务
  */
@@ -23,6 +23,14 @@ export class UpdateService extends EventEmitter {
   constructor(updateUrl: string = '') {
     super()
     this.updateUrl = updateUrl.replace(/\/+$/, '')
+  }
+
+  /**
+   * 更新更新源地址，运行中实时生效，无需重启应用
+   * @param url 更新服务器地址，末尾多余的斜杠会被去除
+   */
+  setUrl(url: string): void {
+    this.updateUrl = String(url ?? '').replace(/\/+$/, '')
   }
 
   startupCheck(settings: { get: (key: string, defaultVal?: any) => any; set: (key: string, val: any) => void }): void {
