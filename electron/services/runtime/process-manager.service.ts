@@ -10,6 +10,7 @@ import { spawn, execSync, execFileSync, exec, type ChildProcess } from 'child_pr
 import { basename } from 'path'
 import { EventEmitter } from 'events'
 import * as iconv from 'iconv-lite'
+import { isUncPath, wrapCmdForUnc } from '@electron/services/runtime/unc-shell'
 
 export interface PortProcessInfo {
   pid: number
@@ -64,7 +65,15 @@ export class ProcessManager extends EventEmitter {
 
   spawnProc(command: string, cwd: string, extraEnv?: Record<string, string>): ManagedProcess {
     const env = extraEnv ? { ...process.env, ...extraEnv } : undefined
-    const proc = spawn(command, [], { shell: true, cwd, env, windowsHide: true })
+    // cmd.exe 无法以 UNC 网络路径作为当前目录，UNC 工作目录改用 pushd 映射临时盘符后执行，不再传入 cwd
+    const proc = isUncPath(cwd)
+      ? spawn(
+          'cmd.exe',
+          ['/d', '/s', '/c', wrapCmdForUnc(command, cwd)],
+          // windowsVerbatimArguments 保证包装命令原样传递给 cmd.exe，避免其中的引号被二次转义
+          { env, windowsHide: true, windowsVerbatimArguments: true },
+        )
+      : spawn(command, [], { shell: true, cwd, env, windowsHide: true })
     const mp: ManagedProcess = {
       proc,
       name: basename(cwd),
