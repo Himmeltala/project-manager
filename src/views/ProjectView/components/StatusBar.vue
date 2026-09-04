@@ -2,7 +2,7 @@
  * @Author: zhengrenfu
  * @Date: 2026-07-14
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-07-14
+ * @LastEditTime: 2026-09-04
  * @FilePath: \src\views\ProjectView\components\StatusBar.vue
  * @Description: 状态栏组件，显示项目计数和面板切换按钮
 -->
@@ -111,7 +111,7 @@ onUnmounted(() => {
   background: var(--el-color-primary);
   color: var(--el-color-white);
   flex-shrink: 0;
-  font-size: 12px;
+  font-size: var(--el-font-size-extra-small);
 }
 .status-info {
   flex: 1;
@@ -126,7 +126,7 @@ onUnmounted(() => {
   color: var(--el-color-white);
   background: transparent;
   border: none;
-  font-size: 11px;
+  font-size: var(--app-font-size-mini);
   min-height: 22px;
 }
 .status-actions .el-button:hover {

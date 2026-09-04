@@ -2,7 +2,7 @@
  * @Author: zhengrenfu
  * @Date: 2026-07-14
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-07-25
+ * @LastEditTime: 2026-09-04
  * @FilePath: \src\views\ProjectView\modals\DataDirModal.vue
  * @Description: 数据目录管理对话框
 -->
@@ -98,12 +98,12 @@ async function deleteItem(path: string, name: string) {
   border-radius: 4px;
 }
 .data-dir-path {
-  font-family: Consolas;
-  font-size: 12px;
+  font-family: var(--app-font-mono);
+  font-size: var(--el-font-size-extra-small);
   color: var(--el-color-primary);
 }
 .data-dir-total {
-  font-size: 14px;
+  font-size: var(--el-font-size-base);
   font-weight: bold;
   color: var(--el-color-warning);
 }

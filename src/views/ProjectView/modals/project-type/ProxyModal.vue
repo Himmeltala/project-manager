@@ -2,7 +2,7 @@
  * @Author: zhengrenfu
  * @Date: 2026-07-27
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-08-03
+ * @LastEditTime: 2026-09-04
  * @FilePath: \src\views\ProjectView\modals\ProxyModal.vue
  * @Description: Proxy 代理配置对话框（适配器模式版）
 -->
@@ -25,7 +25,9 @@
     </template>
 
     <template v-if="proxies.length > 0">
-      <div style="font-size: 12px; color: var(--el-text-color-secondary); margin-bottom: 8px">
+      <div
+        style="font-size: var(--el-font-size-extra-small); color: var(--el-text-color-secondary); margin-bottom: 8px"
+      >
         类型: {{ adapterLabel }}
       </div>
       <el-table :data="proxies" size="small" :stripe="true">
@@ -75,7 +77,7 @@
       </el-table>
       <div
         v-if="Object.keys(pending).length > 0"
-        style="margin-top: 8px; font-size: 12px; color: var(--el-text-color-secondary)"
+        style="margin-top: 8px; font-size: var(--el-font-size-extra-small); color: var(--el-text-color-secondary)"
       >
         待保存修改: {{ Object.keys(pending).length }} 个代理
       </div>

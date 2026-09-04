@@ -2,7 +2,7 @@
  * @Author: zhengrenfu
  * @Date: 2026-07-14
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-07-14
+ * @LastEditTime: 2026-09-04
  * @FilePath: \src\views\ProjectView\components\NotificationList.vue
  * @Description:
 -->
@@ -113,7 +113,7 @@ async function clearAll() {
 }
 .notification-title {
   flex: 1;
-  font-size: 12px;
+  font-size: var(--el-font-size-extra-small);
   font-weight: bold;
   color: var(--el-text-color-primary);
 }
@@ -157,11 +157,11 @@ async function clearAll() {
   gap: 8px;
 }
 .notify-title {
-  font-size: 13px;
+  font-size: var(--el-font-size-small);
   color: var(--el-text-color-primary);
 }
 .notify-meta {
-  font-size: 11px;
+  font-size: var(--app-font-size-mini);
   color: var(--el-text-color-secondary);
 }
 .notify-meta-row {
@@ -171,17 +171,17 @@ async function clearAll() {
   margin-top: 3px;
 }
 .notify-badge {
-  font-size: 11px;
+  font-size: var(--app-font-size-mini);
   border: 1px solid;
   border-radius: 2px;
   padding: 0 4px;
 }
 .notify-time {
-  font-size: 11px;
+  font-size: var(--app-font-size-mini);
   color: var(--el-text-color-secondary);
 }
 .notify-msg {
-  font-size: 12px;
+  font-size: var(--el-font-size-extra-small);
   color: var(--el-text-color-regular);
   margin-top: 4px;
   word-break: break-all;

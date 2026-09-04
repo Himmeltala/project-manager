@@ -2,7 +2,7 @@
  * @Author: zhengrenfu
  * @Date: 2026-07-14
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-08-03
+ * @LastEditTime: 2026-09-04
  * @FilePath: \src\views\ProjectView\components\ProjectTable.vue
  * @Description: 项目表格组件，含分页、右键菜单
 -->
@@ -634,7 +634,7 @@ onUnmounted(() => {
   width: 200px;
 }
 .context-menu-header-name {
-  font-size: 14px;
+  font-size: var(--el-font-size-base);
   font-weight: 600;
   color: var(--el-text-color-primary);
   line-height: 1.4;
@@ -643,7 +643,7 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 .context-menu-header-path {
-  font-size: 11px;
+  font-size: var(--app-font-size-mini);
   color: var(--el-text-color-secondary);
   line-height: 1.4;
   overflow: hidden;
@@ -653,7 +653,7 @@ onUnmounted(() => {
 .context-menu-item {
   padding: 6px 16px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--el-font-size-small);
   color: var(--el-text-color-primary);
 }
 .context-menu-item:hover {
@@ -667,7 +667,7 @@ onUnmounted(() => {
 .context-menu-sub {
   padding: 6px 16px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--el-font-size-small);
   color: var(--el-text-color-primary);
   position: relative;
   display: flex;
@@ -682,16 +682,16 @@ onUnmounted(() => {
 }
 .context-menu-label {
   padding: 2px 16px;
-  font-size: 11px;
+  font-size: var(--app-font-size-mini);
   color: var(--el-text-color-secondary);
   cursor: default;
 }
 .context-menu-subitem {
   padding-left: 24px;
-  font-size: 12px;
+  font-size: var(--el-font-size-extra-small);
 }
 .sub-arrow {
-  font-size: 12px;
+  font-size: var(--el-font-size-extra-small);
   color: var(--el-text-color-secondary);
   margin-left: 12px;
 }

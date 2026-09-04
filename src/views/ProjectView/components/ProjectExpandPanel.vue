@@ -2,7 +2,7 @@
  * @Author: zhengrenfu
  * @Date: 2026-07-14
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-08-03
+ * @LastEditTime: 2026-09-04
  * @FilePath: \src\views\ProjectView\components\ProjectExpandPanel.vue
  * @Description:
 -->
@@ -241,7 +241,7 @@ onUnmounted(() => {
   color: var(--el-text-color-primary);
 }
 .header-path {
-  font-family: 'Cascadia Code', 'Consolas', 'Menlo', monospace;
+  font-family: var(--app-font-mono);
   font-size: var(--el-font-size-small);
   color: var(--el-text-color-regular);
 }

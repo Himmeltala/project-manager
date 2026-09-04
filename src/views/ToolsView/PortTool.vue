@@ -2,7 +2,7 @@
  * @Author: zhengrenfu
  * @Date: 2026-07-22
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-07-22
+ * @LastEditTime: 2026-09-04
  * @FilePath: \src\views\ToolsView\PortTool.vue
  * @Description: 端口工具 — 查询端口占用、查看进程列表、终止指定进程
 -->
@@ -150,7 +150,7 @@ async function doKillPid(proc: PortProcess) {
   margin-bottom: 16px;
 }
 .section-title {
-  font-size: 14px;
+  font-size: var(--el-font-size-base);
   font-weight: bold;
   color: var(--el-text-color-primary);
   margin-bottom: 8px;

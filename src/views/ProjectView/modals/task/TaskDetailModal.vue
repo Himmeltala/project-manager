@@ -2,7 +2,7 @@
  * @Author: zhengrenfu
  * @Date: 2026-07-14
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-07-25
+ * @LastEditTime: 2026-09-04
  * @FilePath: \src\views\ProjectView\modals\TaskDetailModal.vue
  * @Description: 后台任务详情对话框
 -->
@@ -17,7 +17,9 @@
   >
     <div v-if="!task" style="color: var(--el-text-color-secondary)">任务未找到</div>
     <template v-else>
-      <div style="font-size: 14px; font-weight: bold; margin-bottom: 8px">任务: {{ task.name }}</div>
+      <div style="font-size: var(--el-font-size-base); font-weight: bold; margin-bottom: 8px">
+        任务: {{ task.name }}
+      </div>
       <div style="margin-bottom: 8px; color: var(--el-text-color-regular)">
         状态: <span :style="{ color: statusColor }">{{ statusText }}</span>
       </div>
@@ -34,7 +36,7 @@
         {{ cancelling ? '正在取消...' : '取消任务' }}
       </el-button>
       <el-divider />
-      <div style="font-size: 13px; font-weight: bold; margin-bottom: 4px">执行日志</div>
+      <div style="font-size: var(--el-font-size-small); font-weight: bold; margin-bottom: 4px">执行日志</div>
       <div ref="logRef" class="task-log">
         <div v-for="(line, i) in task.logLines" :key="i" class="task-log-line">{{ line }}</div>
       </div>
@@ -119,8 +121,8 @@ onUnmounted(() => {
   background: var(--el-bg-color);
   padding: 8px;
   border-radius: 4px;
-  font-family: Consolas, monospace;
-  font-size: 12px;
+  font-family: var(--app-font-mono);
+  font-size: var(--el-font-size-extra-small);
   line-height: 1.5;
 }
 .task-log-line {

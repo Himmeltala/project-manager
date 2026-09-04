@@ -2,7 +2,7 @@
  * @Author: zhengrenfu
  * @Date: 2026-07-29
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-09-03
+ * @LastEditTime: 2026-09-04
  * @FilePath: \src\views\ProjectView\modals\settings\ConfigPriorityEditorModal.vue
  * @Description: 配置文件优先级可视化编辑器，支持排序、添加、编辑、删除
 -->
@@ -247,7 +247,7 @@ function resetTool(tool: ToolSection) {
   background: var(--el-fill-color-light);
 }
 .tool-label {
-  font-size: 13px;
+  font-size: var(--el-font-size-small);
   font-weight: 500;
 }
 .file-list {
@@ -275,8 +275,8 @@ function resetTool(tool: ToolSection) {
   min-height: 18px;
 }
 .file-name {
-  font-size: 13px;
-  font-family: monospace;
+  font-size: var(--el-font-size-small);
+  font-family: var(--app-font-mono);
   cursor: pointer;
   flex: 1;
 }

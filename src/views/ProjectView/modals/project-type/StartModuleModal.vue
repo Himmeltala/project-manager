@@ -2,7 +2,7 @@
  * @Author: zhengrenfu
  * @Date: 2026-08-09
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-08-09
+ * @LastEditTime: 2026-09-04
  * @FilePath: \src\views\ProjectView\modals\project-type\StartModuleModal.vue
  * @Description: 选择启动模块对话框（Maven/Gradle 多模块项目，支持多选/停止）
 -->
@@ -35,7 +35,7 @@
           </el-checkbox>
           <div
             style="
-              font-size: 12px;
+              font-size: var(--el-font-size-extra-small);
               color: var(--el-text-color-secondary);
               white-space: nowrap;
               overflow: hidden;

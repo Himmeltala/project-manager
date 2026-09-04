@@ -2,7 +2,7 @@
  * @Author: zhengrenfu
  * @Date: 2026-08-09
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-08-09
+ * @LastEditTime: 2026-09-04
  * @FilePath: \src\views\ProjectView\modals\project-type\SubmodulePortModal.vue
  * @Description: 端口详情弹窗（Maven 多模块 / 单模块 / npm 通用）
 -->
@@ -20,7 +20,9 @@
       <el-table-column prop="port" label="端口" width="100" align="center" />
       <el-table-column label="路径" min-width="140" show-overflow-tooltip>
         <template #default="{ row }">
-          <span style="font-size: 12px; color: var(--el-text-color-secondary)">{{ row.modulePath || '-' }}</span>
+          <span style="font-size: var(--el-font-size-extra-small); color: var(--el-text-color-secondary)">{{
+            row.modulePath || '-'
+          }}</span>
         </template>
       </el-table-column>
     </el-table>
