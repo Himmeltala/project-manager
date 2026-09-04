@@ -314,18 +314,12 @@ function setupMenu(): void {
   const send = (action: string) => mainWindow?.webContents.send(IPC_EVENT.menu, { action })
   const template: Electron.MenuItemConstructorOptions[] = [
     {
-      label: '版本控制',
-      submenu: [
-        { label: '范围更新', click: () => send('vcsRange') },
-        { label: '范围检查', click: () => send('vcsCheckRange') },
-      ],
+      label: '文件',
+      submenu: [{ label: '数据目录管理', click: () => send('dataDir') }],
     },
     {
-      label: '文件',
-      submenu: [
-        { label: '设置', click: () => send('settings') },
-        { label: '数据目录管理', click: () => send('dataDir') },
-      ],
+      label: '视图',
+      submenu: [{ label: '设置', click: () => send('settings') }],
     },
   ]
   const menu = Menu.buildFromTemplate(template)
