@@ -6,7 +6,7 @@
  * @FilePath: \electron\services\version-control\svn\index.ts
  * @Description: SVN 版本控制提供者，支持可配置的 SVN/TortoiseSVN 路径
  */
-import { exec, execSync } from 'child_process'
+import { execSync } from 'child_process'
 import { existsSync } from 'fs'
 import { join, resolve, dirname } from 'path'
 import type {
@@ -20,10 +20,12 @@ import type {
 import * as iconv from 'iconv-lite'
 import { runSpawnStream } from '@electron/services/version-control/spawn-stream'
 
-/* svn 常规命令的超时毫秒数，大仓库更新耗时较长 */
+/* svn 状态与日志等短命令的超时毫秒数 */
 const SVN_COMMAND_TIMEOUT = 60000
-/* svn checkout 迁移的超时毫秒数 */
-const SVN_CHECKOUT_TIMEOUT = 300000
+/* 网络共享盘上大工作副本更新耗时可能超过一分钟，更新与检出迁移的超时毫秒数 */
+const SVN_UPDATE_TIMEOUT = 300000
+/* 检查失败原因文本的最大长度 */
+const ERROR_REASON_MAX_LENGTH = 200
 
 const CHANGE_PREFIXES = new Set(['M', 'A', 'D', '!', '?', 'C', '~', 'I', 'R'])
 const TYPE_NAMES: Record<string, string> = {
@@ -66,48 +68,21 @@ export class SvnProvider implements VcsProvider {
     return null
   }
 
-  private execSvn(
+  /**
+   * 执行 svn 命令并收集完整输出，内部走原生 spawn，规避 cmd 在 UNC 路径下回退系统目录的缺陷
+   * @param {string} path 工作目录
+   * @param {string[]} args svn 命令参数，按数组原样透传，不经 shell 拼接
+   * @param {number} timeout 超时毫秒数
+   * @returns {Promise<{ ok: boolean; stdout: string }>} 退出状态与输出文本
+   */
+  private async execSvn(
     path: string,
     args: string[],
     timeout = SVN_COMMAND_TIMEOUT,
   ): Promise<{ ok: boolean; stdout: string }> {
-    const svnPath = this.getSvnPath()
-    // 路径包含空格时用引号包裹，避免 shell 解析错误
-    const quotedSvn = svnPath.includes(' ') ? `"${svnPath}"` : svnPath
-    return new Promise((resolve) => {
-      exec(
-        [quotedSvn, ...args].join(' '),
-        { cwd: path, timeout, windowsHide: true, encoding: 'buffer' },
-        (err, stdout: Buffer, stderr: Buffer) => {
-          let text = stdout.toString('utf-8')
-          if (text.includes('�')) {
-            try {
-              const cp = execSync('chcp', { encoding: 'utf8', windowsHide: true, timeout: 1000 })
-              // Node Buffer 不支持 gbk，用 iconv-lite 解码
-              text = iconv.decode(stdout, cp.includes('936') ? 'gbk' : 'latin1')
-            } catch {
-              /* keep utf-8 */
-            }
-          }
-          // stderr 回退内容同样进行 GBK 编码检测
-          if (!text && stderr.length > 0) {
-            let errText = stderr.toString('utf-8')
-            if (errText.includes('�')) {
-              try {
-                const cp = execSync('chcp', { encoding: 'utf8', windowsHide: true, timeout: 1000 })
-                // Node Buffer 不支持 gbk，用 iconv-lite 解码
-                errText = iconv.decode(stderr, cp.includes('936') ? 'gbk' : 'latin1')
-              } catch {
-                /* keep utf-8 */
-              }
-            }
-            resolve({ ok: !err, stdout: errText })
-            return
-          }
-          resolve({ ok: !err, stdout: text })
-        },
-      )
-    })
+    const { ok, stdout, stderr } = await this.spawnSvnStream(path, args, timeout)
+    // stdout 为空时回退使用 stderr 内容，保持 exec 通道的历史文本语义
+    return { ok, stdout: stdout || stderr }
   }
 
   isProject(path: string): boolean {
@@ -162,7 +137,7 @@ export class SvnProvider implements VcsProvider {
     const { ok, stdout, stderr } = await this.spawnSvnStream(
       path,
       ['update', '--accept', 'postpone'],
-      SVN_COMMAND_TIMEOUT,
+      SVN_UPDATE_TIMEOUT,
       hooks,
     )
     const text = stdout || stderr
@@ -179,7 +154,8 @@ export class SvnProvider implements VcsProvider {
   }
 
   async log(path: string, limit = 20): Promise<boolean> {
-    const { ok } = await this.execSvn(path, ['log', `-l ${limit}`])
+    // 原生 spawn 不做 shell 分词，选项与取值拆分为独立参数
+    const { ok } = await this.execSvn(path, ['log', '-l', `${limit}`])
     return ok
   }
 
@@ -227,12 +203,41 @@ export class SvnProvider implements VcsProvider {
     }
   }
 
+  /**
+   * 从失败输出中提取首个非空行作为失败原因，超过长度上限时截断
+   * @param {string} output 失败时的完整输出，stdout 为空时已回退为 stderr 内容
+   * @returns {string} 首行有效原因文本，无有效行时返回通用失败文案
+   */
+  private extractFailureReason(output: string): string {
+    const firstLine = output
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .find((line) => line.length > 0)
+    return (firstLine || 'svn 命令执行失败').slice(0, ERROR_REASON_MAX_LENGTH)
+  }
+
+  /**
+   * 批量检查各项目是否有远程新版本，命令执行失败时返回 count 为 -1 的错误结果
+   * @param {Array<{ name: string; path: string }>} projects 待检查项目列表
+   * @returns {Promise<VcsCheckResult[]>} 存在远程新版本或检查失败的结果列表
+   */
   async checkRemote(projects: { name: string; path: string }[]): Promise<VcsCheckResult[]> {
     const results: VcsCheckResult[] = []
     for (const { name, path } of projects) {
       if (!this.isProject(path)) continue
       const { ok, stdout } = await this.execSvn(path, ['status', '-u'])
-      if (!ok) continue
+      // 命令执行失败不再静默跳过，count 为 -1 表示检查失败，由上层决定是否通知
+      if (!ok) {
+        const reason = this.extractFailureReason(stdout)
+        results.push({
+          projectName: name,
+          projectPath: path,
+          files: [reason],
+          count: -1,
+          summary: `远程检查失败: ${reason}`,
+        })
+        continue
+      }
       const remoteFiles: string[] = []
       for (const line of stdout.split('\n')) {
         const trimmed = line.trim()
@@ -251,12 +256,28 @@ export class SvnProvider implements VcsProvider {
     return results
   }
 
+  /**
+   * 批量检查各项目的本地未提交变更，命令执行失败时返回 count 为 -1 的错误结果
+   * @param {Array<{ name: string; path: string }>} projects 待检查项目列表
+   * @returns {Promise<VcsCheckResult[]>} 存在本地变更或检查失败的结果列表
+   */
   async checkLocal(projects: { name: string; path: string }[]): Promise<VcsCheckResult[]> {
     const results: VcsCheckResult[] = []
     for (const { name, path } of projects) {
       if (!this.isProject(path)) continue
       const { ok, stdout } = await this.execSvn(path, ['status'])
-      if (!ok) continue
+      // 命令执行失败不再静默跳过，count 为 -1 表示检查失败，由上层决定是否通知
+      if (!ok) {
+        const reason = this.extractFailureReason(stdout)
+        results.push({
+          projectName: name,
+          projectPath: path,
+          files: [reason],
+          count: -1,
+          summary: `本地检查失败: ${reason}`,
+        })
+        continue
+      }
       const changes: string[] = []
       for (const line of stdout.split('\n')) {
         const trimmed = line.trim()
@@ -317,7 +338,7 @@ export class SvnProvider implements VcsProvider {
     const result = await this.spawnSvnStream(
       dirname(targetDir),
       ['checkout', url, targetDir],
-      SVN_CHECKOUT_TIMEOUT,
+      SVN_UPDATE_TIMEOUT,
       hooks,
     )
     return result.ok

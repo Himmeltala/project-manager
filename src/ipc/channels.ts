@@ -109,6 +109,7 @@ export const IPC = {
   vcs: {
     checkLocal: 'vcs:checkLocal',
     checkRemote: 'vcs:checkRemote',
+    checkUpdates: 'vcs:checkUpdates',
     count: 'vcs:count',
     detect: 'vcs:detect',
     detectBatch: 'vcs:detectBatch',

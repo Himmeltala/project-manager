@@ -25,6 +25,18 @@
       <div style="flex: 1" />
       <div>
         <el-button
+          :icon="Bell"
+          plain
+          :loading="checking"
+          :disabled="pullStore.pulling || checking"
+          title="检查当前项目源是否存在远程更新"
+          @click="handleCheckUpdates"
+        >
+          检查更新
+        </el-button>
+      </div>
+      <div>
+        <el-button
           v-if="!pullStore.pulling"
           :icon="Download"
           plain
@@ -67,7 +79,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { IPC } from '@/ipc/channels'
 
-import { Refresh, Management, Plus, Download, VideoPause } from '@element-plus/icons-vue'
+import { Refresh, Management, Plus, Download, VideoPause, Bell } from '@element-plus/icons-vue'
 import { useProjectStore } from '@/stores/project.store'
 import { useNotificationStore } from '@/stores/notification.store'
 import { usePullStore } from '@/stores/pull.store'
@@ -106,6 +118,8 @@ const pullStore = usePullStore()
 const allSourcesMode = ref(false)
 const allProjects = ref<any[]>([])
 const refreshing = ref(false)
+// 检查更新任务是否在进行中，由任务完成事件复位
+const checking = ref(false)
 
 // useModal 实例
 const buildModal = useModal({ component: BuildDialog })
@@ -184,6 +198,10 @@ async function handlePull() {
     useWarning('所有源模式下不可拉取项目，请先切换到具体项目源')
     return
   }
+  if (checking.value) {
+    useWarning('正在检查更新，暂不能拉取项目')
+    return
+  }
   if (pullStore.pulling) return
   try {
     const taskId = await window.electronAPI.invoke(IPC.vcs.pullProjects)
@@ -216,6 +234,36 @@ async function handleCancel() {
     console.error('请求中断拉取失败:', e)
     useError(`请求中断拉取失败: ${(e as Error).message || e}`)
     pullStore.markCancelling(false)
+  }
+}
+// #endregion
+
+// #region 检查更新
+/**
+ * 发起检查更新任务：主进程返回任务 ID 后立即放行，按钮加载态持续到任务完成事件回调
+ * 该任务仅允许在具体项目源模式下执行，并与拉取任务互斥
+ */
+async function handleCheckUpdates() {
+  if (allSourcesMode.value) {
+    useWarning('所有源模式下不可检查更新，请先切换到具体项目源')
+    return
+  }
+  if (checking.value) return
+  if (pullStore.pulling) {
+    useWarning('正在拉取项目，暂不能检查更新')
+    return
+  }
+  try {
+    const taskId = await window.electronAPI.invoke(IPC.vcs.checkUpdates)
+    if (!taskId) {
+      useWarning('没有可检查的项目或已有检查任务在进行')
+      return
+    }
+    // 主进程已接收任务，按钮加载态由任务完成或失败事件结束
+    checking.value = true
+  } catch (e) {
+    console.error('发起检查更新任务失败:', e)
+    useError(`发起检查更新任务失败: ${(e as Error).message || e}`)
   }
 }
 // #endregion
@@ -374,6 +422,20 @@ onMounted(async () => {
     }
   })
 
+  // 检查更新任务正常结束：任务名以"检查更新:"开头时复位按钮加载态
+  const c8 = window.electronAPI.on('event:taskCompleted', ({ name }) => {
+    if (name.startsWith('检查更新:')) {
+      checking.value = false
+    }
+  })
+
+  // 检查更新任务失败：同样复位按钮加载态
+  const c9 = window.electronAPI.on('event:taskFailed', ({ name }) => {
+    if (name.startsWith('检查更新:')) {
+      checking.value = false
+    }
+  })
+
   document.addEventListener('keydown', onKeydown)
   window.addEventListener('locateProject', onLocateProject)
 
@@ -403,6 +465,8 @@ onMounted(async () => {
     c2,
     c6,
     c7,
+    c8,
+    c9,
     c4,
     () => window.removeEventListener('viewTaskDetail', c5),
     () => clearInterval(scriptTimer),

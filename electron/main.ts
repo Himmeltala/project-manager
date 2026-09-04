@@ -11,7 +11,7 @@ import { app, BrowserWindow, Menu, ipcMain, dialog } from 'electron'
 import { SETTINGS_KEYS } from '@/ipc/keys'
 import { IPC, IPC_EVENT } from '@/ipc/channels'
 
-import { join, resolve, dirname } from 'path'
+import { join, resolve, dirname, basename } from 'path'
 import { existsSync, readFileSync, writeFileSync, mkdtempSync, readdirSync, rmSync, statSync } from 'fs'
 import { spawn } from 'child_process'
 import { tmpdir } from 'os'
@@ -19,6 +19,7 @@ import { fileURLToPath } from 'url'
 
 // 服务层
 import { ProcessManager } from '@electron/services/runtime/process-manager.service'
+import { isUncPath, wrapCmdForUnc } from '@electron/services/runtime/unc-shell'
 import { ProjectService } from '@electron/services/project/project.service'
 import { SourceManager } from '@electron/services/project/source-manager.service'
 import { TaskService } from '@electron/services/runtime/task.service'
@@ -30,7 +31,7 @@ import { ProjectRepository } from '@electron/services/project/project-repository
 import { vcsRegistry } from '@electron/services/version-control/registry'
 import { SvnProvider } from '@electron/services/version-control/svn/index'
 import { GitProvider } from '@electron/services/version-control/git/index'
-import type { SettingsGetter, VcsUpdateResult } from '@electron/services/version-control/registry'
+import type { SettingsGetter, VcsUpdateResult, VcsCheckResult } from '@electron/services/version-control/registry'
 import { ensureDataDir, getSourceRoot, scanDataDir, deleteItem } from '@electron/services/core/data-dir.service'
 import { createStore, storeGet, storeSet, storeDelete, storeKeys } from '@electron/services/core/store.service'
 import type { Store } from '@electron/services/core/store.service'
@@ -83,6 +84,9 @@ let localCheckTimer: NodeJS.Timeout | null = null
 // 拉取项目执行标记，为 true 时禁止切换、刷新或扫描项目源，避免与拉取快照错位
 let vcsPullInProgress = false
 
+// 手动检查更新执行标记，为 true 时拒绝重复触发；与定时自动检查并发运行无副作用，不做互斥
+let vcsCheckInProgress = false
+
 function flushOutputBuffer() {
   if (outputBuffer.length > 0) {
     mainWindow?.webContents.send(IPC_EVENT.outputBatch, outputBuffer)
@@ -121,10 +125,41 @@ function cleanOldTermScripts(): void {
   }
 }
 
+/**
+ * 判断终端程序是否依赖 cmd 解释器执行（cmd.exe 本体或以 .bat/.cmd 脚本作为入口），
+ * cmd 无法将 UNC 网络路径作为当前目录使用，此类终端在 UNC 项目下需要 pushd 包装
+ * @param termPath 终端可执行文件路径
+ * @returns 是否为 cmd 家族终端
+ */
+function isCmdTerminal(termPath: string): boolean {
+  const base = basename(termPath).toLowerCase()
+  return base === 'cmd' || base === 'cmd.exe' || base.endsWith('.bat') || base.endsWith('.cmd')
+}
+
+/**
+ * 将 UNC 网络路径转换为 msys 环境可识别的正斜杠路径，
+ * 首段双反斜杠改写为双正斜杠，其余反斜杠改写为正斜杠
+ * @param uncPath UNC 网络路径，调用方需保证以双反斜杠开头
+ * @returns msys 环境使用的路径
+ */
+function toMsysPath(uncPath: string): string {
+  return `//${uncPath.slice(2).replace(/\\/g, '/')}`
+}
+
+/**
+ * 按版本控制类型分组执行批量检查，每个命中项目生成一条持久通知，
+ * count 小于 0 的检查失败标记条目不生成通知，保持自动检查对失败静默的既有行为
+ * @param checkFn 具体检查函数，按提供者分组后调用，返回命中与失败结果列表
+ * @param notificationType 命中项目的通知类型，如 vcs_remote、local_changes
+ * @param titlePrefix 命中项目通知标题的前缀
+ * @param onResults 可选回调，逐组透出本轮完整结果（含失败标记条目），供调用方区分命中与失败
+ * @returns 所有分组检查全部完成后结束
+ */
 async function executeVcsChecks(
-  checkFn: (vcs: any, projects: { name: string; path: string }[]) => Promise<any[]>,
+  checkFn: (vcs: any, projects: { name: string; path: string }[]) => Promise<VcsCheckResult[]>,
   notificationType: string,
   titlePrefix: string,
+  onResults?: (results: VcsCheckResult[]) => void,
 ): Promise<void> {
   const projects = projectService.projects.map((p) => ({ name: p.name, path: p.path }))
   if (projects.length === 0) return
@@ -140,6 +175,8 @@ async function executeVcsChecks(
   const tasks = Array.from(grouped.entries()).map(async ([vcs, projs]) => {
     const results = await checkFn(vcs, projs)
     for (const r of results) {
+      // count 小于 0 表示该条是项目检查失败标记，不生成命中通知
+      if (r.count < 0) continue
       notificationService.createNotification(
         notificationType as any,
         `${titlePrefix}: ${r.projectName}`,
@@ -148,6 +185,8 @@ async function executeVcsChecks(
         true,
       )
     }
+    // 完整结果原样透出回调，由手动检查任务区分命中与失败
+    if (onResults) onResults(results)
   })
   await Promise.all(tasks)
 }
@@ -531,6 +570,76 @@ function registerIpc(): void {
     return taskId
   })
 
+  // 手动检查当前项目源中所有版本控制项目的远程更新，命中的每个项目生成一条持久通知
+  ipcMain.handle(IPC.vcs.checkUpdates, async () => {
+    // 已有手动检查任务在执行时拒绝重复触发；定时自动检查与其并发运行无副作用，不做互斥
+    if (vcsCheckInProgress) {
+      notificationService.createNotification('warning', '已有检查任务在执行', '')
+      return null
+    }
+    const sourceName = sourceMgr.getActiveSourceName()
+    // 快照当前源的全部项目，非版本控制项目由执行函数内部跳过
+    const targets = projectService.projects.map((p) => ({ name: p.name, path: p.path }))
+    if (targets.length === 0) {
+      notificationService.createNotification('warning', '当前项目源没有可检查的项目', '')
+      return null
+    }
+    // 先置标记再注册任务，避免任务排队期间重复触发；标记由任务目标收尾时释放
+    vcsCheckInProgress = true
+    const total = targets.length
+    const taskId = taskService.addTask(`检查更新: ${sourceName}`, async (report) => {
+      let found = 0
+      const failed: VcsCheckResult[] = []
+      try {
+        report(`开始检查项目源: ${sourceName}，共 ${total} 个项目`, 5)
+        // 项目级循环在各提供者内部执行，任务卡片仅上报里程碑进度，
+        // 任务取消只在里程碑边界生效，检查为短耗时网络操作，可接受
+        await executeVcsChecks(
+          (vcs, projs) => vcs.checkRemote(projs),
+          'vcs_remote',
+          '远程有更新',
+          (results) => {
+            // count 小于 0 的失败标记条目不计入命中数量，逐条输出一行错误日志，
+            // 避免全部检查失败时误报"未发现远程更新"
+            for (const r of results) {
+              if (r.count < 0) {
+                failed.push(r)
+                mainWindow?.webContents.send(IPC_EVENT.output, {
+                  type: 'error',
+                  text: `[检查更新] ${r.projectName}: 检查失败，${r.summary}`,
+                })
+              } else {
+                found++
+              }
+            }
+          },
+        )
+        // 命中项目的逐条通知已由执行函数生成，此处按命中与失败组合收尾
+        if (found > 0) {
+          const failText = failed.length > 0 ? `，${failed.length} 个项目检查失败` : ''
+          report(`检查完成: ${total} 个项目，发现 ${found} 个项目有远程更新，已生成通知${failText}`, 100)
+          mainWindow?.webContents.send(IPC_EVENT.output, {
+            type: failed.length > 0 ? 'warning' : 'success',
+            text: `[检查更新] ${sourceName}: ${found} 个项目有远程更新${failText}`,
+          })
+        } else if (failed.length > 0) {
+          // 全部检查失败时不输出"未发现更新"的成功日志，失败明细已逐条写入日志面板
+          report(`检查完成: ${failed.length} 个项目检查失败，详见日志`, 100)
+        } else {
+          report('检查完成: 未发现远程更新', 100)
+          mainWindow?.webContents.send(IPC_EVENT.output, {
+            type: 'success',
+            text: `[检查更新] ${sourceName}: 未发现远程更新`,
+          })
+        }
+      } finally {
+        // 任务结束（含失败与取消）后释放标记，允许再次发起手动检查
+        vcsCheckInProgress = false
+      }
+    })
+    return taskId
+  })
+
   // ── process (lifecycle) ──
   ipcMain.handle(IPC.process.start, async (_e, idx, command) => projectService.start(idx, command))
   ipcMain.handle(IPC.process.startByPath, async (_e, path, command) => projectService.startByPath(path, command))
@@ -799,9 +908,11 @@ function registerIpc(): void {
       const vcs = vcsRegistry.detect(p.path)
       if (!vcs) continue
       const r = await vcs.checkRemote([p])
-      if (r.length > 0) {
-        notificationService.createNotification('vcs_remote', `远程有更新: ${p.name}`, r[0].summary, p.name, true)
-        results.push(r[0])
+      for (const hit of r) {
+        // count 小于 0 为检查失败标记，不生成通知也不回传结果，维持检查失败静默的既有行为
+        if (hit.count < 0) continue
+        notificationService.createNotification('vcs_remote', `远程有更新: ${p.name}`, hit.summary, p.name, true)
+        results.push(hit)
       }
     }
     return results
@@ -812,15 +923,17 @@ function registerIpc(): void {
       const vcs = vcsRegistry.detect(p.path)
       if (!vcs) continue
       const r = await vcs.checkLocal([p])
-      if (r.length > 0) {
+      for (const hit of r) {
+        // count 小于 0 为检查失败标记，不生成通知也不回传结果，维持检查失败静默的既有行为
+        if (hit.count < 0) continue
         notificationService.createNotification(
           'local_changes',
           `本地有未提交变更: ${p.name}`,
-          r[0].summary,
+          hit.summary,
           p.name,
           true,
         )
-        results.push(r[0])
+        results.push(hit)
       }
     }
     return results
@@ -962,14 +1075,23 @@ function registerIpc(): void {
     let termArgs: string = entry?.args || '--cd={path}'
     const initCommand: string = entry?.init || ''
     try {
+      // cmd.exe 及 .bat/.cmd 脚本无法将 UNC 网络路径作为当前目录，
+      // 命中时改用 pushd 建立临时盘符映射的包装方式启动；
+      // Git Bash 等 msys 终端与 powershell.exe 支持 UNC 当前目录，保持原样直启
+      const needCmdUncWrap = isUncPath(projectPath) && isCmdTerminal(termPath)
       if (initCommand) {
         const isBash = /bash|sh|git/i.test(termPath)
         if (isBash) {
-          const script = `cd "${projectPath}"\\n${initCommand}\\nexec bash -i 2>/dev/null || exec sh -i 2>/dev/null || cmd.exe`
+          // UNC 路径在 msys 环境须改写为双正斜杠前缀，直接使用反斜杠形式 cd 会失败
+          const bashCwd = isUncPath(projectPath) ? toMsysPath(projectPath) : projectPath
+          const script = `cd "${bashCwd}"\n${initCommand}\nexec bash -i 2>/dev/null || exec sh -i 2>/dev/null || cmd.exe`
           spawn(termPath, ['-c', script], { windowsHide: false, detached: true }).unref()
         } else {
+          // 批处理在 cmd 会话内以 pushd 代替 cd /d 进入共享目录，初始化命令原地执行，
+          // 盘符映射随 cmd 窗口关闭而自动释放；本地路径仍沿用 cd /d
+          const cdLine = isUncPath(projectPath) ? `@pushd "${projectPath}" >nul 2>&1` : `@cd /d "${projectPath}"`
           const tmpDir = mkdtempSync(join(tmpdir(), 'term-'))
-          const script = `@cd /d "${projectPath}"\\n${initCommand}\\n`
+          const script = `${cdLine}\n${initCommand}\n`
           const scriptPath = join(tmpDir, 'init.bat')
           writeFileSync(scriptPath, script, 'utf-8')
           spawn('cmd.exe', ['/k', scriptPath], { windowsHide: false, detached: true }).unref()
@@ -978,7 +1100,17 @@ function registerIpc(): void {
       }
       const argTokens = termArgs ? parseArgs(termArgs) : []
       const args = argTokens.map((a) => a.replace(/\{path\}/g, projectPath))
-      spawn(termPath, args, { cwd: projectPath, windowsHide: false, detached: true }).unref()
+      if (needCmdUncWrap) {
+        // 外层 cmd.exe 先 pushd 映射共享目录盘符，再启动内层交互 cmd 继承映射后的目录，
+        // 内层退出后外层随之结束，映射随进程退出自动释放；
+        // 原启动参数一并舍弃，cmd 交互窗口默认行为与裸参数一致
+        spawn('cmd.exe', ['/d', '/s', '/c', wrapCmdForUnc('cmd', projectPath)], {
+          windowsHide: false,
+          detached: true,
+        }).unref()
+      } else {
+        spawn(termPath, args, { cwd: projectPath, windowsHide: false, detached: true }).unref()
+      }
       return true
     } catch (err) {
       mainWindow?.webContents.send(IPC_EVENT.output, { type: 'error', text: `打开终端失败: ${(err as Error).message}` })

@@ -24,6 +24,7 @@ import type {
 import type { RunningInfo, MigrationParams } from '@/types/process'
 import type { ManagedProcess } from '@electron/services/runtime/process-manager.service'
 import { ProcessManager } from '@electron/services/runtime/process-manager.service'
+import { isUncPath, wrapCmdForUnc } from '@electron/services/runtime/unc-shell'
 import { projectTypeRegistry } from '@electron/services/project-type/registry'
 import { javaFrameworkRegistry } from '@electron/services/project-type/maven/framework/index'
 import { TomcatFramework } from '@electron/services/project-type/maven/framework/tomcat'
@@ -51,33 +52,40 @@ function getSystemEncoding(): string {
 
 // 非阻塞版 exec，不卡 UI。自动检测编码，始终 resolve（不 reject）
 function execAsync(cmd: string, opts: any = {}): Promise<{ text: string; exitCode: number }> {
+  // cmd.exe 无法以 UNC 网络路径作为当前目录，cwd 为 UNC 时改用 pushd 包装执行，并在参数中移除 cwd
+  const uncCwd = isUncPath(opts?.cwd) ? (opts.cwd as string) : null
+  const { cwd: _droppedCwd, ...restOpts } = opts
   return new Promise((resolve, reject) => {
-    exec(cmd, { ...opts, windowsHide: true, encoding: 'buffer' }, (err, stdout: Buffer, stderr: Buffer) => {
-      // 编码解码（统一处理，无论 err 与否）
-      const decode = (buf: Buffer): string => {
-        let t = buf.toString('utf-8')
-        if (t.includes('�')) {
-          // Node Buffer 不支持 gbk，用 iconv-lite 解码（chcp 936   GBK）
-          t = iconv.decode(buf, getSystemEncoding())
+    exec(
+      uncCwd ? wrapCmdForUnc(cmd, uncCwd) : cmd,
+      { ...(uncCwd ? restOpts : opts), windowsHide: true, encoding: 'buffer' },
+      (err, stdout: Buffer, stderr: Buffer) => {
+        // 编码解码（统一处理，无论 err 与否）
+        const decode = (buf: Buffer): string => {
+          let t = buf.toString('utf-8')
+          if (t.includes('�')) {
+            // Node Buffer 不支持 gbk，用 iconv-lite 解码（chcp 936   GBK）
+            t = iconv.decode(buf, getSystemEncoding())
+          }
+          return t
         }
-        return t
-      }
-      // stdout + stderr 合并（SVN 有时输出到 stderr）
-      let text = decode(stdout)
-      if (!text.trim()) text = decode(stderr)
-      // 检查 exitCode：Node 的 err.code 是进程退出码（数字）或错误名（如 'ENOENT'）
-      let exitCode = 0
-      if (err) {
-        const code = (err as any).code
-        exitCode = typeof code === 'number' ? code : 1
-      }
+        // stdout + stderr 合并（SVN 有时输出到 stderr）
+        let text = decode(stdout)
+        if (!text.trim()) text = decode(stderr)
+        // 检查 exitCode：Node 的 err.code 是进程退出码（数字）或错误名（如 'ENOENT'）
+        let exitCode = 0
+        if (err) {
+          const code = (err as any).code
+          exitCode = typeof code === 'number' ? code : 1
+        }
 
-      // SVN/build 等命令即使非零退出也可能有成功的输出（如 "At revision"）
-      if (!text.trim()) {
-        text = (err as any)?.message || ''
-      }
-      resolve({ text, exitCode })
-    })
+        // SVN/build 等命令即使非零退出也可能有成功的输出（如 "At revision"）
+        if (!text.trim()) {
+          text = (err as any)?.message || ''
+        }
+        resolve({ text, exitCode })
+      },
+    )
   })
 }
 
@@ -89,7 +97,16 @@ function execAsyncStream(
 ): Promise<{ text: string; exitCode: number }> {
   return new Promise((resolve) => {
     const env = opts.extraEnv ? { ...process.env, ...opts.extraEnv } : undefined
-    const child = spawn(cmd, [], { shell: true, cwd: opts.cwd, env, windowsHide: true })
+    // cmd.exe 无法以 UNC 路径作为当前目录，UNC 工作目录改用 pushd 映射临时盘符后执行，不再传入 cwd
+    const uncCwd = opts.cwd && isUncPath(opts.cwd) ? opts.cwd : null
+    const child = uncCwd
+      ? spawn(
+          'cmd.exe',
+          ['/d', '/s', '/c', wrapCmdForUnc(cmd, uncCwd)],
+          // windowsVerbatimArguments 保证包装命令原样传递给 cmd.exe，避免其中的引号被二次转义
+          { env, windowsHide: true, windowsVerbatimArguments: true },
+        )
+      : spawn(cmd, [], { shell: true, cwd: opts.cwd, env, windowsHide: true })
     let timedOut = false
     const timer = opts.timeout
       ? setTimeout(() => {
