@@ -2,7 +2,7 @@
  * @Author: zhengrenfu
  * @Date: 2026-07-27
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-07-27 22:39:00
+ * @LastEditTime: 2026-09-04
  * @FilePath: \src\views\ProjectView\modals\PortModal.vue
  * @Description: Dev Server 端口配置对话框 — 读取/修改 vue.config.js / vite.config.ts 中的端口
 -->
@@ -21,7 +21,7 @@
 
     <template v-else-if="!adapterLabel">
       <div style="color: var(--el-text-color-secondary)">未找到可识别的构建工具配置</div>
-      <div style="font-size: 12px; color: var(--el-text-color-secondary); margin-top: 4px">
+      <div style="font-size: var(--el-font-size-extra-small); color: var(--el-text-color-secondary); margin-top: 4px">
         支持的构建工具: Vue CLI (vue.config.js)、Vite (vite.config.ts)、Webpack (webpack.dev.config.js)、Rspack
         (rspack.config.js)
       </div>
@@ -33,7 +33,9 @@
           <span style="color: var(--el-text-color-secondary)">{{ adapterLabel }}</span>
         </el-form-item>
         <el-form-item label="当前端口">
-          <span v-if="currentPort !== null" style="font-size: 16px; font-weight: 500">{{ currentPort }}</span>
+          <span v-if="currentPort !== null" style="font-size: var(--el-font-size-medium); font-weight: 500">{{
+            currentPort
+          }}</span>
           <span v-else style="color: var(--el-text-color-secondary)">未配置</span>
         </el-form-item>
         <el-form-item label="新端口">
@@ -46,7 +48,9 @@
           />
         </el-form-item>
         <el-form-item>
-          <span style="font-size: 12px; color: var(--el-text-color-secondary)">保存后需重启 dev server 生效</span>
+          <span style="font-size: var(--el-font-size-extra-small); color: var(--el-text-color-secondary)"
+            >保存后需重启 dev server 生效</span
+          >
         </el-form-item>
       </el-form>
     </template>

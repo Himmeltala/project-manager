@@ -2,7 +2,7 @@
  * @Author: zhengrenfu
  * @Date: 2026-07-21
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-09-03
+ * @LastEditTime: 2026-09-04
  * @FilePath: \src\components\AppMessagePanel.vue
  * @Description: 应用消息面板，收集前端异常和信息提示，替代 ElMessage
 -->
@@ -158,14 +158,14 @@ function escapeHtml(text: string): string {
 }
 .log-title {
   flex: 1;
-  font-size: 12px;
+  font-size: var(--el-font-size-extra-small);
   font-weight: bold;
   color: var(--el-text-color-primary);
 }
 .log-content {
   flex: 1;
-  font-family: var(--el-font-family);
-  font-size: 12px;
+  font-family: var(--app-font-mono);
+  font-size: var(--el-font-size-extra-small);
   line-height: 1.5;
 }
 .log-content :deep(.el-scrollbar__view) {

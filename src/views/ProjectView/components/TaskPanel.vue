@@ -2,7 +2,7 @@
  * @Author: zhengrenfu
  * @Date: 2026-07-14
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-07-21
+ * @LastEditTime: 2026-09-04
  * @FilePath: \src\views\ProjectView\components\TaskPanel.vue
  * @Description: 后台任务面板组件，卡片布局
 -->
@@ -114,7 +114,7 @@ onUnmounted(() => {
 }
 .task-title {
   flex: 1;
-  font-size: 12px;
+  font-size: var(--el-font-size-extra-small);
   font-weight: bold;
   color: var(--el-text-color-primary);
 }
@@ -155,7 +155,7 @@ onUnmounted(() => {
   margin-bottom: 0;
 }
 .task-name {
-  font-size: 13px;
+  font-size: var(--el-font-size-small);
   font-weight: 600;
   color: var(--el-text-color-primary);
   flex: 1;
@@ -165,14 +165,14 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 .task-status-badge {
-  font-size: 11px;
+  font-size: var(--app-font-size-mini);
   border: 1px solid;
   border-radius: 2px;
   padding: 0 4px;
   flex-shrink: 0;
 }
 .task-message {
-  font-size: 12px;
+  font-size: var(--el-font-size-extra-small);
   color: var(--el-text-color-regular);
   word-break: break-all;
 }

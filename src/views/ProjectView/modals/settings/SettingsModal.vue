@@ -2,7 +2,7 @@
  * @Author: zhengrenfu
  * @Date: 2026-07-14
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-09-03
+ * @LastEditTime: 2026-09-04
  * @FilePath: \src\views\ProjectView\modals\settings\SettingsModal.vue
  * @Description: 设置对话框
 -->
@@ -188,7 +188,7 @@ async function refreshVcsTimers() {
   margin-bottom: 20px;
 }
 .settings-group h3 {
-  font-size: 14px;
+  font-size: var(--el-font-size-base);
   color: var(--el-color-primary);
   margin-bottom: 10px;
   padding-bottom: 4px;
@@ -203,7 +203,7 @@ async function refreshVcsTimers() {
 .setting-row label {
   width: 120px;
   text-align: right;
-  font-size: 13px;
+  font-size: var(--el-font-size-small);
   padding-top: 4px;
   flex-shrink: 0;
 }
@@ -211,7 +211,7 @@ async function refreshVcsTimers() {
   flex: 1;
 }
 .setting-desc {
-  font-size: 11px;
+  font-size: var(--app-font-size-mini);
   color: var(--el-text-color-secondary);
   margin-top: 2px;
 }
@@ -221,7 +221,7 @@ async function refreshVcsTimers() {
   gap: 6px;
 }
 .spinbox-suffix {
-  font-size: 13px;
+  font-size: var(--el-font-size-small);
   color: var(--el-text-color-secondary);
   white-space: nowrap;
 }

@@ -2,7 +2,7 @@
  * @Author: zhengrenfu
  * @Date: 2026-07-14
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-07-25
+ * @LastEditTime: 2026-09-04
  * @FilePath: \src\views\ProjectView\modals\MigrateModal.vue
  * @Description: 迁移项目对话框
 -->
@@ -33,7 +33,10 @@
       <template v-if="mode === 'svn'">
         <el-form-item label="SVN 地址:">
           <el-input v-model="svnUrl" :placeholder="detectedSvnUrl || '输入 SVN 仓库地址'" />
-          <div v-if="detectedSvnUrl" style="font-size: 12px; color: var(--el-text-color-secondary); margin-top: 4px">
+          <div
+            v-if="detectedSvnUrl"
+            style="font-size: var(--el-font-size-extra-small); color: var(--el-text-color-secondary); margin-top: 4px"
+          >
             自动检测到: {{ detectedSvnUrl }}
           </div>
         </el-form-item>
@@ -56,7 +59,15 @@
           <el-input v-model="subDir" placeholder="如: subdir/my-project-v2" />
         </el-form-item>
         <el-form-item v-if="sourcePreview" label="完整路径:">
-          <div style="color: var(--el-color-success); font-family: Consolas; font-size: 12px">{{ sourcePreview }}</div>
+          <div
+            style="
+              color: var(--el-color-success);
+              font-family: var(--app-font-mono);
+              font-size: var(--el-font-size-extra-small);
+            "
+          >
+            {{ sourcePreview }}
+          </div>
         </el-form-item>
       </template>
 
@@ -70,7 +81,7 @@
       </template>
 
       <el-form-item v-if="mode === 'copy' && targetMode === 'custom'" label=" ">
-        <div style="font-size: 12px; color: var(--el-text-color-secondary)">
+        <div style="font-size: var(--el-font-size-extra-small); color: var(--el-text-color-secondary)">
           自动排除: node_modules, .git, dist, build, .next, .nuxt, .cache, __pycache__, .idea, .vscode, *.zip, target
         </div>
       </el-form-item>

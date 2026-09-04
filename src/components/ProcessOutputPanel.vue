@@ -2,7 +2,7 @@
  * @Author: zhengrenfu
  * @Date: 2026-07-14
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-09-03
+ * @LastEditTime: 2026-09-04
  * @FilePath: /src/components/ProcessOutputPanel.vue
  * @Description: 进程输出面板，展示 Electron 子进程 stdout/stderr 实时输出
 -->
@@ -183,7 +183,7 @@ onUnmounted(() => {
 }
 .terminal-title {
   flex: 1;
-  font-size: 12px;
+  font-size: var(--el-font-size-extra-small);
   font-weight: bold;
   color: var(--el-text-color-primary);
 }
@@ -191,15 +191,15 @@ onUnmounted(() => {
   flex: 1;
   overflow-y: auto;
   padding: 4px 8px;
-  font-family: var(--el-font-family);
-  font-size: 12px;
+  font-family: var(--app-font-mono);
+  font-size: var(--el-font-size-extra-small);
   line-height: 1.5;
 }
 .t-line {
   white-space: pre-wrap;
   word-break: break-all;
-  font-family: var(--el-font-family);
-  font-size: 12px;
+  font-family: var(--app-font-mono);
+  font-size: var(--el-font-size-extra-small);
   line-height: 1.5;
 }
 .t-ts {

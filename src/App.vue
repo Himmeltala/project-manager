@@ -2,7 +2,7 @@
  * @Author: zhengrenfu
  * @Date: 2026-07-14
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-08-03
+ * @LastEditTime: 2026-09-04
  * @FilePath: \src\App.vue
  * @Description: 根组件，管理主题、侧边栏路由和 IPC 事件
 -->
@@ -229,6 +229,10 @@ onUnmounted(() => {
 }
 :root {
   --app-sidebar-width: 180px;
+  /* 代码类内容等宽字体，终端输出、路径、执行日志等统一走该变量 */
+  --app-font-mono: 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+  /* 小于 Element 最小字号 token 的补充档，用于徽标等紧凑文字 */
+  --app-font-size-mini: 11px;
 }
 html,
 body,
