@@ -97,7 +97,6 @@ import InstallDialog from '@/views/ProjectView/modals/project/InstallModal.vue'
 import MigrateDialog from '@/views/ProjectView/modals/project/MigrateModal.vue'
 import AddSourceDialog from '@/views/ProjectView/modals/project/AddSourceModal.vue'
 import SourceManageDialog from '@/views/ProjectView/modals/project/SourceManageModal.vue'
-import VcsRangeDialog from '@/views/ProjectView/modals/version-control/VcsRangeModal.vue'
 import SettingsModal from '@/views/ProjectView/modals/settings/SettingsModal.vue'
 import StartModuleDialog from '@/views/ProjectView/modals/project-type/StartModuleModal.vue'
 import SubmodulePortDialog from '@/views/ProjectView/modals/project-type/SubmodulePortModal.vue'
@@ -128,7 +127,6 @@ const installModal = useModal({ component: InstallDialog })
 const migrateModal = useModal({ component: MigrateDialog })
 const addSourceModal = useModal({ component: AddSourceDialog })
 const sourceManageModal = useModal({ component: SourceManageDialog })
-const vcsRangeModal = useModal({ component: VcsRangeDialog })
 const settingsModal = useModal({ component: SettingsModal })
 const dataDirModal = useModal({ component: DataDirDialog })
 const taskDetailModal = useModal({ component: TaskDetailDialog })
@@ -351,9 +349,6 @@ async function handleAddSource() {
 // #endregion
 
 // #region Dialog Helpers
-function openVcsRange(mode: 'update' | 'check' = 'update') {
-  vcsRangeModal.open({ mode })
-}
 function openSettings() {
   settingsModal.open()
 }
@@ -441,8 +436,6 @@ onMounted(async () => {
 
   // 主进程菜单事件分发表：动作名到处理函数的映射
   const menuEventHandlers: Record<string, () => void> = {
-    vcsRange: () => openVcsRange('update'),
-    vcsCheckRange: () => openVcsRange('check'),
     manageSources: openSourceManage,
     addSource: handleAddSource,
     settings: openSettings,
