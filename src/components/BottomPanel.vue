@@ -1,8 +1,8 @@
 <!--
  * @Author: zhengrenfu
- * @Date: 2026-07-14
+ * @Date: 2026-07-14 22:55:29
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-09-03
+ * @LastEditTime: 2026-09-03 22:55:29
  * @FilePath: \src\components\BottomPanel.vue
  * @Description: 底部面板容器，管理输出/日志/通知/任务四个子面板的显隐和拖拽
 -->

@@ -1,8 +1,8 @@
 /*
  * @Author: zhengrenfu
- * @Date: 2026-08-15
+ * @Date: 2026-08-15 15:52:48
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-08-15
+ * @LastEditTime: 2026-08-15 16:24:10
  * @FilePath: \src\actions\context.ts
  * @Description: 动作执行上下文适配器，统一封装 IPC 通道、弹窗与消息提示
  */

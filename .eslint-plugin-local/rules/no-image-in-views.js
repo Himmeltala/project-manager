@@ -1,12 +1,11 @@
 /*
- * @Author: zhengrenfu
- * @Date: 2026-07-31 00:00:00
- * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-07-31 00:00:00
- * @FilePath: .eslint-plugin-local/rules/no-image-in-views.js
- * @Description: 禁止图片文件存放在 src/views/ 下，模板中图片路径必须在 /static/image/ 下
+ * @Author: runnet
+ * @Date: 2026-09-06 16:20:00
+ * @LastEditors: runnet
+ * @LastEditTime: 2026-09-06 16:20:00
+ * @FilePath: no-image-in-views.js
+ * @Description: 禁止 views 下存放图片并规范模板图片路径
  */
-
 import path from 'path'
 
 const ROOT = process.cwd()
@@ -27,48 +26,58 @@ export default {
     type: 'problem',
     docs: {
       description:
-        '禁止图片文件存放在 src/views/ 下，模板中图片路径必须在 /static/image/ 下',
+        '禁止图片文件存放在 src/views/ 下，模板中引用的图片路径必须位于 /static/image/ 下',
     },
     messages: {
       fileInViews:
-        '图片文件不应放在 views 目录下，请移至 public/static/image/ 引入',
+        '图片文件不应放在 views 目录下，请移至 public/static/image/ 目录后通过路径引用',
       invalidImagePath:
-        '图片路径 "{{ path }}" 不在 /static/image/ 下，请移至 public/static/image/ 后更新路径',
+        '图片路径 "{{ path }}" 不在 /static/image/ 下，请将图片移至 public/static/image/ 后更新路径',
     },
   },
 
   create(context) {
-    const f = context.filename || ''
+    const f = context.getFilename() || ''
     const rel = '/' + path.relative(ROOT, f).replace(/\\/g, '/')
     if (!rel.startsWith('/src/')) return {}
 
     const ext = path.extname(f).toLowerCase()
 
+    // 当前文件本身是图片且在 views 下
     if (IMAGE_EXTS.has(ext) && rel.includes('/views/')) {
       context.report({
-        node: context.sourceCode.ast,
+        node: context.getSourceCode().ast,
         messageId: 'fileInViews',
       })
     }
 
+    // 非 Vue 文件不需要后续模板检查
     if (ext !== '.vue') return {}
 
-    const ps = context.parserServices
+    const ps = context.sourceCode.parserServices
     if (!ps || !ps.defineTemplateBodyVisitor) return {}
 
     return Object.assign(
       {},
+
+      // <img src="..."> — 静态属性
       ps.defineTemplateBodyVisitor({
         'VAttribute[directive=false][key.name="src"]'(node) {
           checkImageValue(node && node.value)
         },
-        'VAttribute[directive=true][key.name.name="bind"][key.argument.name="src"]'(node) {
+
+        // <img :src="'...'"> — 动态绑定但值为字符串字面量
+        'VAttribute[directive=true][key.name.name="bind"][key.argument.name="src"]'(
+          node
+        ) {
           checkBoundImageValue(node && node.value)
         },
+
+        // 静态 style="background: url(...)" 或 background-image: url(...)
         'VAttribute[directive=false][key.name="style"]'(node) {
           checkStyleUrlValue(node && node.value)
         },
-      }),
+      })
     )
 
     function checkImageValue(literal) {
@@ -86,6 +95,8 @@ export default {
     function checkBoundImageValue(exprContainer) {
       if (!exprContainer || !exprContainer.expression) return
       const expr = exprContainer.expression
+
+      // :src="'xxx.png'"
       if (expr.type === 'Literal' && typeof expr.value === 'string') {
         const val = expr.value.trim()
         if (isImagePath(val) && !isAllowedPath(val)) {
@@ -96,6 +107,8 @@ export default {
           })
         }
       }
+
+      // :src="`xxx.png`"
       if (expr.type === 'TemplateLiteral' && expr.quasis.length === 1) {
         const val = expr.quasis[0].value.raw.trim()
         if (isImagePath(val) && !isAllowedPath(val)) {

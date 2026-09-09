@@ -4,31 +4,26 @@
  * @LastEditors: zhengrenfu
  * @LastEditTime: 2026-07-31 00:00:00
  * @FilePath: .eslint-plugin-local/index.js
- * @Description: 本地 ESLint 规则入口
+ * @Description: 本地 ESLint 规则入口，自动扫描 rules 目录注册全部规则
  */
 
-import illegalComponentUsing from './rules/illegal-component-using.js'
-import illegalModalUsing from './rules/illegal-modal-using.js'
-import illegalHeaderAnnotation from './rules/illegal-header-annotation.js'
-import illegalAnnotation from './rules/illegal-annotation.js'
-import noImageInViews from './rules/no-image-in-views.js'
-import noImageInSrc from './rules/no-image-in-src.js'
-import useDesignVariables from './rules/use-design-variables.js'
-import requiredScriptSetup from './rules/required-script-setup.js'
-import noUnusedFiles from './rules/no-unused-files.js'
-import noRelativeImports from './rules/no-relative-imports.js'
+import { readdirSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
-export default {
-  rules: {
-    'illegal-component-using': illegalComponentUsing,
-    'illegal-modal-using': illegalModalUsing,
-    'illegal-header-annotation': illegalHeaderAnnotation,
-    'illegal-annotation': illegalAnnotation,
-    'no-image-in-views': noImageInViews,
-    'no-image-in-src': noImageInSrc,
-    'use-design-variables': useDesignVariables,
-    'required-script-setup': requiredScriptSetup,
-    'no-unused-files': noUnusedFiles,
-    'no-relative-imports': noRelativeImports,
-  },
+const RULES_DIR = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  'rules',
+)
+
+// 扫描 rules 目录，文件名即规则名，新增删除无需手工维护
+const rules = {}
+for (const file of readdirSync(RULES_DIR).sort()) {
+  if (!file.endsWith('.js')) continue
+  const { default: rule } = await import(
+    pathToFileURL(path.join(RULES_DIR, file)).href
+  )
+  rules[file.slice(0, -3)] = rule
 }
+
+export default { rules }

@@ -1,8 +1,8 @@
 /*
  * @Author: zhengrenfu
- * @Date: 2026-08-03
+ * @Date: 2026-08-03 11:06:04
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-08-03
+ * @LastEditTime: 2026-08-03 15:38:45
  * @FilePath: \src\types\log.ts
  * @Description: 系统日志相关类型定义
  */

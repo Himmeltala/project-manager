@@ -1,8 +1,8 @@
 <!--
  * @Author: zhengrenfu
- * @Date: 2026-07-14
+ * @Date: 2026-07-14 09:49:04
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-09-03
+ * @LastEditTime: 2026-09-03 09:49:04
  * @FilePath: \src\views\ProjectView\index.vue
  * @Description: 项目视图，组合工具栏、搜索栏、筛选栏、表格和对话框逻辑
 -->
@@ -210,7 +210,6 @@ async function handlePull() {
     pullStore.markStart(taskId)
     window.dispatchEvent(new CustomEvent('openTaskPanel'))
   } catch (e) {
-    console.error('发起拉取任务失败:', e)
     useError(`发起拉取任务失败: ${(e as Error).message || e}`)
   }
 }
@@ -229,7 +228,6 @@ async function handleCancel() {
   try {
     await window.electronAPI.invoke(IPC.task.cancel, id)
   } catch (e) {
-    console.error('请求中断拉取失败:', e)
     useError(`请求中断拉取失败: ${(e as Error).message || e}`)
     pullStore.markCancelling(false)
   }
@@ -260,7 +258,6 @@ async function handleCheckUpdates() {
     // 主进程已接收任务，按钮加载态由任务完成或失败事件结束
     checking.value = true
   } catch (e) {
-    console.error('发起检查更新任务失败:', e)
     useError(`发起检查更新任务失败: ${(e as Error).message || e}`)
   }
 }

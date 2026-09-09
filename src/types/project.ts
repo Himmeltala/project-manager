@@ -1,8 +1,8 @@
 /*
  * @Author: zhengrenfu
- * @Date: 2026-07-14
+ * @Date: 2026-07-14 16:21:42
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-07-14
+ * @LastEditTime: 2026-07-14 16:21:42
  * @FilePath: \src\types\project.ts
  * @Description: 项目配置与相关数据结构定义
  */

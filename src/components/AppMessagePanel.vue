@@ -1,8 +1,8 @@
 <!--
  * @Author: zhengrenfu
- * @Date: 2026-07-21
+ * @Date: 2026-07-21 09:30:40
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-09-04
+ * @LastEditTime: 2026-09-04 09:30:40
  * @FilePath: \src\components\AppMessagePanel.vue
  * @Description: 应用消息面板，收集前端异常和信息提示，替代 ElMessage
 -->

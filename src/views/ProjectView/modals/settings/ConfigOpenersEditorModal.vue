@@ -1,8 +1,8 @@
 <!--
  * @Author: zhengrenfu
- * @Date: 2026-07-27
+ * @Date: 2026-07-27 22:55:32
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-09-03
+ * @LastEditTime: 2026-09-03 22:55:32
  * @FilePath: \src\views\ProjectView\modals\settings\ConfigOpenersEditorModal.vue
  * @Description: 配置文件打开程序列表可视化编辑器，支持增删改
 -->

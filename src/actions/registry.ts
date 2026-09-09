@@ -1,8 +1,8 @@
 /*
  * @Author: zhengrenfu
- * @Date: 2026-08-15
+ * @Date: 2026-08-15 15:52:10
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-08-15
+ * @LastEditTime: 2026-08-15 15:54:12
  * @FilePath: \src\actions\registry.ts
  * @Description: 动作策略注册表，策略独立注册、按动作名查询
  */

@@ -1,8 +1,8 @@
 <!--
  * @Author: zhengrenfu
- * @Date: 2026-07-27
+ * @Date: 2026-07-27 09:31:12
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-09-04
+ * @LastEditTime: 2026-09-04 09:31:30
  * @FilePath: \src\views\ProjectView\modals\PortModal.vue
  * @Description: Dev Server 端口配置对话框 — 读取/修改 vue.config.js / vite.config.ts 中的端口
 -->
@@ -106,8 +106,8 @@ watch(
         currentPort.value = result.port
         newPort.value = result.port
       }
-    } catch (e: any) {
-      console.error('[PortModal] 检测失败:', e)
+    } catch {
+      // 忽略加载异常
     } finally {
       loading.value = false
     }

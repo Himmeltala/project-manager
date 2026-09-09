@@ -1,8 +1,8 @@
 <!--
  * @Author: zhengrenfu
- * @Date: 2026-07-27
+ * @Date: 2026-07-27 09:31:13
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-09-04
+ * @LastEditTime: 2026-09-04 09:31:30
  * @FilePath: \src\views\ProjectView\modals\ProxyModal.vue
  * @Description: Proxy 代理配置对话框（适配器模式版）
 -->
@@ -131,8 +131,8 @@ watch(
         adapterLabel.value = result.label || ''
         proxies.value = result.proxies || []
       }
-    } catch (e: any) {
-      console.error('[ProxyModal] 加载代理配置失败:', e)
+    } catch {
+      // 忽略加载异常
     } finally {
       loading.value = false
     }

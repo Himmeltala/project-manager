@@ -1,8 +1,8 @@
 <!--
  * @Author: zhengrenfu
- * @Date: 2026-07-14
+ * @Date: 2026-07-14 09:30:38
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-09-04
+ * @LastEditTime: 2026-09-04 09:30:38
  * @FilePath: /src/components/ProcessOutputPanel.vue
  * @Description: 进程输出面板，展示 Electron 子进程 stdout/stderr 实时输出
 -->

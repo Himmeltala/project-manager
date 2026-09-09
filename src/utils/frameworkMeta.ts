@@ -1,8 +1,8 @@
 /*
  * @Author: zhengrenfu
- * @Date: 2026-08-15
+ * @Date: 2026-08-15 16:21:44
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-08-15
+ * @LastEditTime: 2026-08-15 16:26:18
  * @FilePath: \src\utils\frameworkMeta.ts
  * @Description: 运行框架显示元数据注册表
  */

@@ -1,8 +1,8 @@
 /*
  * @Author: zhengrenfu
- * @Date: 2026-08-15
+ * @Date: 2026-08-15 23:03:34
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-09-03
+ * @LastEditTime: 2026-09-03 23:03:34
  * @FilePath: \src\ipc\channels.ts
  * @Description: IPC 通道常量表，主进程与渲染进程共用，通道名改一处生效
  */

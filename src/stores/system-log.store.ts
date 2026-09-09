@@ -1,8 +1,8 @@
 /*
  * @Author: zhengrenfu
- * @Date: 2026-07-21
+ * @Date: 2026-07-21 11:53:05
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-07-21
+ * @LastEditTime: 2026-07-21 10:02:20
  * @FilePath: \src\stores\system-log.store.ts
  * @Description: 系统日志状态管理（控制台信息、Vue 错误、未捕获异常等）
  */

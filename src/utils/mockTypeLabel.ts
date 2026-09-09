@@ -1,8 +1,8 @@
 /*
  * @Author: zhengrenfu
- * @Date: 2026-07-14
+ * @Date: 2026-07-14 16:04:00
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-08-15
+ * @LastEditTime: 2026-08-15 16:04:00
  * @FilePath: \src\utils\mockTypeLabel.ts
  * @Description: 项目类型标签映射 — 通过后端类型能力获取类型显示名称
  */

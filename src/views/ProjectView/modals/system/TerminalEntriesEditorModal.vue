@@ -1,8 +1,8 @@
 <!--
  * @Author: zhengrenfu
- * @Date: 2026-07-21
+ * @Date: 2026-07-21 22:55:34
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-09-03
+ * @LastEditTime: 2026-09-03 22:55:34
  * @FilePath: \src\views\ProjectView\modals\system\TerminalEntriesEditorModal.vue
  * @Description: 终端命令列表可视化编辑器，支持增删改
 -->

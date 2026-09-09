@@ -31,21 +31,12 @@ export default tseslint.config(
   // Prettier 集成（放在最后，关闭格式化冲突规则）
   pluginPrettier,
 
-  // 本地插件
+  // 本地插件：rules 目录自动扫描注册，此处自动全量启用
   {
     plugins: { local: localPlugin },
-    rules: {
-      'local/illegal-component-using': 'error',
-      'local/illegal-modal-using': 'error',
-      'local/illegal-header-annotation': 'error',
-      'local/illegal-annotation': 'error',
-      'local/no-image-in-views': 'error',
-      'local/no-image-in-src': 'error',
-      'local/use-design-variables': 'error',
-      'local/required-script-setup': 'error',
-      'local/no-unused-files': 'warn',
-      'local/no-relative-imports': 'error',
-    },
+    rules: Object.fromEntries(
+      Object.keys(localPlugin.rules).map((name) => [`local/${name}`, 'error']),
+    ),
   },
 
   // Vue 文件覆盖

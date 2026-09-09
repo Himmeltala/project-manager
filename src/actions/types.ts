@@ -1,8 +1,8 @@
 /*
  * @Author: zhengrenfu
- * @Date: 2026-08-15
+ * @Date: 2026-08-15 15:52:45
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-08-15
+ * @LastEditTime: 2026-08-15 16:06:19
  * @FilePath: \src\actions\types.ts
  * @Description: 动作策略与执行上下文的接口定义
  */

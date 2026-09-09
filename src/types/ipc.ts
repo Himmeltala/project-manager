@@ -1,8 +1,8 @@
 /*
  * @Author: zhengrenfu
- * @Date: 2026-07-14
+ * @Date: 2026-07-14 02:34:36
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-08-03
+ * @LastEditTime: 2026-08-03 15:38:45
  * @FilePath: \src\types\ipc.ts
  * @Description: IPC 通道类型定义，声明主进程与渲染进程之间的接口
  */

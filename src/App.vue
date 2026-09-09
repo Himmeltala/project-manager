@@ -1,8 +1,8 @@
 <!--
  * @Author: zhengrenfu
- * @Date: 2026-07-14
+ * @Date: 2026-07-14 09:30:34
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-09-04
+ * @LastEditTime: 2026-09-04 09:30:34
  * @FilePath: \src\App.vue
  * @Description: 根组件，管理主题、侧边栏路由和 IPC 事件
 -->

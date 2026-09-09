@@ -1,8 +1,8 @@
 /*
  * @Author: zhengrenfu
- * @Date: 2026-07-14
+ * @Date: 2026-07-14 16:22:02
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-07-14
+ * @LastEditTime: 2026-07-14 16:26:18
  * @FilePath: \src\types\task.ts
  * @Description: 后台任务数据结构定义
  */

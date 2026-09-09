@@ -1,8 +1,8 @@
 /*
  * @Author: zhengrenfu
- * @Date: 2026-07-14
+ * @Date: 2026-07-14 10:46:50
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-07-14
+ * @LastEditTime: 2026-07-14 15:38:45
  * @FilePath: \src\types\notification.ts
  * @Description: 通知数据结构与类型定义
  */

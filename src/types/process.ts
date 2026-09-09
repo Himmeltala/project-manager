@@ -1,8 +1,8 @@
 /*
  * @Author: zhengrenfu
- * @Date: 2026-07-14
+ * @Date: 2026-07-14 19:24:40
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-08-03
+ * @LastEditTime: 2026-08-03 15:38:45
  * @FilePath: \src\types\process.ts
  * @Description: 子进程与任务运行相关类型
  */

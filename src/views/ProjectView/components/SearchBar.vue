@@ -1,8 +1,8 @@
 <!--
  * @Author: zhengrenfu
- * @Date: 2026-07-14
+ * @Date: 2026-07-14 21:28:49
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-09-03
+ * @LastEditTime: 2026-09-03 21:28:49
  * @FilePath: \src\views\ProjectView\components\SearchBar.vue
  * @Description:
 -->
@@ -114,8 +114,8 @@ async function onScopeChange(val: string) {
     await Promise.all([store.loadProjects(), store.refreshRunningInfo()])
     await store.loadSources()
     emit('scopeChange', val)
-  } catch (e) {
-    console.error('切换项目源失败:', e)
+  } catch {
+    // 加载失败沿用旧数据
   }
 }
 </script>

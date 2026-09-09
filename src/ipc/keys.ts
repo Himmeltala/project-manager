@@ -1,8 +1,8 @@
 /*
  * @Author: zhengrenfu
- * @Date: 2026-08-15
+ * @Date: 2026-08-15 22:52:51
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-09-03
+ * @LastEditTime: 2026-09-03 22:52:51
  * @FilePath: \src\ipc\keys.ts
  * @Description: 设置与存储键名常量，主进程与渲染进程共用
  */

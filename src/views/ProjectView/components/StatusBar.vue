@@ -1,8 +1,8 @@
 <!--
  * @Author: zhengrenfu
- * @Date: 2026-07-14
+ * @Date: 2026-07-14 09:30:49
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-09-04
+ * @LastEditTime: 2026-09-04 09:30:49
  * @FilePath: \src\views\ProjectView\components\StatusBar.vue
  * @Description: 状态栏组件，显示项目计数和面板切换按钮
 -->

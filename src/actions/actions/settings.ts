@@ -1,8 +1,8 @@
 /*
  * @Author: zhengrenfu
- * @Date: 2026-08-15
+ * @Date: 2026-08-15 16:25:43
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-08-15
+ * @LastEditTime: 2026-08-15 16:25:44
  * @FilePath: \src\actions\actions\settings.ts
  * @Description: 项目配置动作策略：代理、端口、Java/Maven/Gradle/Tomcat 版本、WAR 名称
  */

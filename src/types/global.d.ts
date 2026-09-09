@@ -1,8 +1,8 @@
 /*
  * @Author: zhengrenfu
- * @Date: 2026-07-14
+ * @Date: 2026-07-14 11:06:15
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-07-14
+ * @LastEditTime: 2026-07-14 15:38:45
  * @FilePath: \src\types\global.d.ts
  * @Description: 全局 Window 扩展，暴露 electronAPI 给渲染进程
  */

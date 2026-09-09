@@ -1,8 +1,8 @@
 /*
  * @Author: zhengrenfu
- * @Date: 2026-07-14
+ * @Date: 2026-07-14 10:45:50
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-07-14
+ * @LastEditTime: 2026-07-14 10:45:50
  * @FilePath: \src\env.d.ts
  * @Description: Vite 与 Vue 文件类型声明
  */

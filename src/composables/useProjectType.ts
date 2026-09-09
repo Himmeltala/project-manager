@@ -1,8 +1,8 @@
 /*
  * @Author: zhengrenfu
- * @Date: 2026-08-15
+ * @Date: 2026-08-15 16:14:07
  * @LastEditors: zhengrenfu
- * @LastEditTime: 2026-08-15
+ * @LastEditTime: 2026-08-15 16:26:18
  * @FilePath: \src\composables\useProjectType.ts
  * @Description: 项目类型能力适配层，后端 provider 为单一事实来源，前端启动时拉取缓存
  */

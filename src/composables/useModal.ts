@@ -152,7 +152,6 @@ export function useModal(options: UseModalOptions): UseModalReturn {
     clearTimeout(destroyTimer!)
     destroyTimer = setTimeout(() => {
       if (container) {
-        console.warn('[useModal] onClosed 未触发，强制销毁弹窗容器')
         destroy()
       }
     }, 5000)
@@ -207,7 +206,6 @@ export function useModal(options: UseModalOptions): UseModalReturn {
     } catch (e) {
       loading = false
       pendingOpen = false
-      console.error('[useModal] 组件加载失败:', e)
       throw e
     }
 
