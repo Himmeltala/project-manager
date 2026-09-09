@@ -29,7 +29,7 @@
     </el-button-group>
     <el-divider direction="vertical" />
     <!-- 拉取项目期间禁用源切换，避免切换操作打断拉取任务 -->
-    <el-select v-model="scope" style="width: 130px" :disabled="pullStore.pulling" @change="onScopeChange">
+    <el-select v-model="scope" style="width: 230px" :disabled="pullStore.pulling" @change="onScopeChange">
       <el-option
         v-for="s in store.sources"
         :key="s.name"
