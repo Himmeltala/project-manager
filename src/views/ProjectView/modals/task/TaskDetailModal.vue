@@ -49,10 +49,10 @@
 
 <script setup lang="ts">
 import { ref, watch, computed, onUnmounted } from 'vue'
-import { IPC } from '@/ipc/channels'
 
 import type { BackgroundTask } from '@/types/task'
 import { getTaskStatusMeta } from '@/types/task'
+import { useTaskStore } from '@/stores/task.store'
 
 const props = defineProps<{
   visible: boolean
@@ -63,6 +63,7 @@ const emit = defineEmits<{
   (e: 'close'): void
 }>()
 
+const taskStore = useTaskStore()
 const task = ref<BackgroundTask | null>(null)
 const cancelling = ref(false)
 let timer: number | undefined
@@ -81,7 +82,12 @@ const progressStatus = computed(() => getTaskStatusMeta(task.value?.status || ''
 
 async function refresh() {
   if (!props.taskId) return
-  task.value = await window.electronAPI.invoke(IPC.task.get, props.taskId)
+  task.value = await taskStore.getDetail(props.taskId)
+  // 终态后停止轮询，避免持续全量拉取
+  if (timer && task.value && (task.value.status === 'completed' || task.value.status === 'failed')) {
+    clearInterval(timer)
+    timer = undefined
+  }
 }
 
 watch(
@@ -106,7 +112,11 @@ watch(
 async function cancelTask() {
   if (!props.taskId) return
   cancelling.value = true
-  await window.electronAPI.invoke(IPC.task.cancel, props.taskId)
+  try {
+    await taskStore.cancelTask(props.taskId)
+  } finally {
+    cancelling.value = false
+  }
 }
 
 onUnmounted(() => {

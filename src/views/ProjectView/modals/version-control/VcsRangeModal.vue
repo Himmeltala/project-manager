@@ -44,7 +44,6 @@ import { IPC } from '@/ipc/channels'
 
 import { useSuccess, useError, useInfo } from '@/composables/useMessage'
 import { useProjectStore } from '@/stores/project.store'
-import { useNotificationStore } from '@/stores/notification.store'
 
 const props = defineProps<{ visible: boolean; mode?: 'update' | 'check' }>()
 const emit = defineEmits<{ (e: 'close'): void }>()
@@ -54,7 +53,6 @@ const startIdx = ref(0)
 const endIdx = ref(0)
 const loading = ref(false)
 const store = useProjectStore()
-const notifyStore = useNotificationStore()
 
 const maxIdx = computed(() => Math.max(0, store.projects.length - 1))
 
@@ -111,7 +109,7 @@ async function execute() {
       } else {
         useInfo('检查完成，没有发现变更')
       }
-      notifyStore.load()
+      // 命中通知由主进程事件驱动 store 自动刷新，无需显式拉取
     }
   } catch (e: any) {
     useError(`${dialogMode.value === 'update' ? '更新' : '检查'}失败: ${e.message}`)

@@ -27,23 +27,32 @@ app.use(ElementPlus, { locale: zhCn })
 // 日志面板：捕获全部控制台信息、Vue 运行时错误、未捕获异常
 const logStore = useSystemLogStore(pinia)
 
+// console 级别到展示类型的映射：log/debug 灰色、info 蓝色、warn 橙色、error 红色
+const CONSOLE_TYPE_MAP: Record<string, 'success' | 'error' | 'warning' | 'info' | 'plain'> = {
+  log: 'plain',
+  debug: 'plain',
+  info: 'info',
+  warn: 'warning',
+  error: 'error',
+}
+
 // Vue 运行时错误
 app.config.errorHandler = (err, _instance, info) => {
   const msg = err instanceof Error ? err.message : String(err)
-  logStore.addEntry(msg, info || '')
+  logStore.addEntry('error', msg, info || '')
 }
 
 // 未捕获 JS 异常
 window.onerror = (_event, _source, _lineno, _colno, err) => {
   const msg = err instanceof Error ? err.message : String(err)
-  logStore.addEntry(msg, 'onerror')
+  logStore.addEntry('error', msg, 'onerror')
 }
 
 // 未捕获 Promise 拒绝
 window.onunhandledrejection = (event) => {
   const reason = event.reason
   const msg = reason instanceof Error ? reason.message : String(reason)
-  logStore.addEntry(msg, 'unhandledRejection')
+  logStore.addEntry('error', msg, 'unhandledRejection')
 }
 
 // 注入所有 console 级别，捕获日志到面板
@@ -52,7 +61,7 @@ for (const level of CONSOLE_LEVELS) {
   const original = (console as any)[level]
   ;(console as any)[level] = (...args: any[]) => {
     const text = args.map((a) => (typeof a === 'string' ? a : a instanceof Error ? a.message : String(a))).join(' ')
-    if (text) logStore.addEntry(text, `console.${level}`)
+    if (text) logStore.addEntry(CONSOLE_TYPE_MAP[level] ?? 'plain', text, `console.${level}`)
     original.apply(console, args)
   }
 }

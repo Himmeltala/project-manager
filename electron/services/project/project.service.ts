@@ -268,13 +268,6 @@ export class ProjectService extends EventEmitter {
     return result
   }
 
-  getTotalScriptsCount(): number {
-    let count = 0
-    for (const proj of this.projects) {
-      count += this.processMgr.getProjectTasks(proj.path).length
-    }
-    return count
-  }
   // #endregion
 
   // #region Start / Stop

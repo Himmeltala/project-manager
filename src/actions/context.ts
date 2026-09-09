@@ -14,6 +14,8 @@ import type { Project } from '@/types/project'
 import type { ActionContext, ModalInstance } from '@/actions/types'
 import { useProjectStore } from '@/stores/project.store'
 import { useNotificationStore } from '@/stores/notification.store'
+import { useSystemLogStore } from '@/stores/system-log.store'
+import type { SystemLogType } from '@/stores/system-log.store'
 import { useInfo, useError, useSuccess, useWarning, useConfirm, usePrompt } from '@/composables/useMessage'
 
 // 上下文装配依赖
@@ -73,22 +75,19 @@ export function createActionContext(deps: ActionContextDeps): ActionContext {
     confirm: useConfirm,
     prompt: usePrompt,
 
-    log(level: string, msg: string): void {
-      window.electronAPI.invoke(IPC.system.log, level, msg)
+    log(level: SystemLogType, msg: string): void {
+      useSystemLogStore().notify(level, msg)
     },
 
     async runScript(idx: number, command: string): Promise<void> {
       if (warnAllSources('运行脚本')) return
       await window.electronAPI.invoke(IPC.projectMgr.runScript, idx, command)
-      window.electronAPI.invoke(IPC.notification.create, 'info', '脚本已启动', command)
+      // 通知写入失败不影响脚本已启动的结果
+      notifyStore.create('info', '脚本已启动', command).catch(() => {})
     },
 
     async refreshRunningInfo(): Promise<void> {
       await store.refreshRunningInfo()
-    },
-
-    async refreshNotifications(): Promise<void> {
-      await notifyStore.load()
     },
 
     async reloadProjects(): Promise<void> {

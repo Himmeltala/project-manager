@@ -15,7 +15,6 @@ export const IPC = {
   notification: {
     create: 'notification:create',
     getAll: 'notification:getAll',
-    getUnreadCount: 'notification:getUnreadCount',
     clearAll: 'notification:clearAll',
     markAllRead: 'notification:markAllRead',
     markRead: 'notification:markRead',
@@ -28,7 +27,6 @@ export const IPC = {
     getAllRunningPaths: 'process:getAllRunningPaths',
     getAllRunningScripts: 'process:getAllRunningScripts',
     getRunningInfo: 'process:getRunningInfo',
-    getTotalScriptsCount: 'process:getTotalScriptsCount',
     killPid: 'process:killPid',
     killPort: 'process:killPort',
     listByPort: 'process:listByPort',
@@ -103,7 +101,6 @@ export const IPC = {
     cancel: 'task:cancel',
     clearFinished: 'task:clearFinished',
     get: 'task:get',
-    getActive: 'task:getActive',
     getAll: 'task:getAll',
   },
   vcs: {

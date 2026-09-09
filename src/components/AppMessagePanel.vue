@@ -4,7 +4,7 @@
  * @LastEditors: zhengrenfu
  * @LastEditTime: 2026-09-04 09:30:40
  * @FilePath: \src\components\AppMessagePanel.vue
- * @Description: 应用消息面板，收集前端异常和信息提示，替代 ElMessage
+ * @Description: 日志面板，纯消费 system-log.store 门面，不含任何 IPC 与订阅
 -->
 <template>
   <div class="system-log-panel">
@@ -13,7 +13,7 @@
       <el-button plain size="small" @click="clearLog">清空</el-button>
     </div>
     <el-scrollbar ref="logContent" class="log-content">
-      <div v-for="(line, i) in lines" :key="i" class="log-line" v-html="line.html"></div>
+      <div v-for="(html, i) in lines" :key="i" class="log-line" v-html="html"></div>
       <div v-if="lines.length === 0" class="log-empty">
         <el-empty :image-size="80" description="暂无日志" />
       </div>
@@ -23,32 +23,70 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, nextTick } from 'vue'
-import { SETTINGS_KEYS } from '@/ipc/keys'
-import { IPC, IPC_EVENT } from '@/ipc/channels'
-
 import { useSystemLogStore } from '@/stores/system-log.store'
+import type { SystemLogRecord } from '@/stores/system-log.store'
 
-const maxLines = ref(5000)
+const logStore = useSystemLogStore()
 const logContent = ref<HTMLElement>()
-const systemLogStore = useSystemLogStore()
+// 渲染用 HTML 行，与 store 内记录通过 syncedCount 游标增量同步
+const lines = ref<string[]>([])
 
-interface LogLine {
-  html: string
+// 类型到默认标签与颜色的映射，未知类型回退到灰色"其他"
+const TYPE_META: Record<string, { label: string; color: string }> = {
+  success: { label: '成功', color: 'var(--el-color-success)' },
+  error: { label: '报错', color: 'var(--el-color-danger)' },
+  warning: { label: '警告', color: 'var(--el-color-warning)' },
+  info: { label: '信息', color: 'var(--el-color-primary)' },
+  plain: { label: '', color: 'var(--el-text-color-secondary)' },
 }
 
-const lines = ref<LogLine[]>([])
+let lastSeq = 0
+let unwatch: (() => void) | undefined
 
-function appendLine(html: string) {
-  lines.value.push({ html })
-  const limit = maxLines.value
-  if (lines.value.length > limit) {
-    lines.value = lines.value.slice(-limit)
+function formatTime(ts: number): string {
+  const d = new Date(ts)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
+
+const htmlEscapes: Record<string, string> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
+}
+function escapeHtml(text: string): string {
+  return text.replace(/[&<>"']/g, (ch) => htmlEscapes[ch])
+}
+
+/**
+ * 将 store 记录格式化为展示 HTML
+ * @param r 日志记录
+ * @returns 单行 HTML
+ */
+function formatRecordHtml(r: SystemLogRecord): string {
+  const meta = TYPE_META[r.type] || { label: '其他', color: 'var(--el-text-color-secondary)' }
+  const label = r.label || meta.label
+  const ts = formatTime(r.time)
+  const tag = label ? `<span style="color:${meta.color}">[${escapeHtml(label)}]</span> ` : ''
+  return `<span style="color:var(--el-text-color-secondary);white-space:nowrap">${ts}</span> ${tag}<span style="color:var(--el-text-color-primary);white-space:pre-wrap">${escapeHtml(r.text)}</span><br>`
+}
+
+// 增量同步 store 新记录并裁剪超出行；seq 水印在头部裁剪后依然准确
+function syncFromStore() {
+  const records = logStore.records
+  for (const record of records) {
+    if (record.seq > lastSeq) {
+      lines.value.push(formatRecordHtml(record))
+      lastSeq = record.seq
+    }
+  }
+  const max = logStore.maxLines
+  if (lines.value.length > max) {
+    lines.value = lines.value.slice(-max)
   }
   scrollToBottom()
-}
-
-function clearLog() {
-  lines.value = []
 }
 
 async function scrollToBottom() {
@@ -59,84 +97,22 @@ async function scrollToBottom() {
   }
 }
 
-const cleanups: (() => void)[] = []
+function clearLog() {
+  logStore.clearAll()
+  lines.value = []
+}
 
-onMounted(async () => {
-  // 读取已保存的最大日志行数，未配置时保持默认值
-  const saved = await window.electronAPI.invoke(IPC.settings.get, SETTINGS_KEYS.systemLogMaxLines)
-  const cap = Number(saved)
-  if (Number.isFinite(cap) && cap >= 1) maxLines.value = Math.floor(cap)
-
-  // 设置变更时实时调整上限，并裁剪已超出的旧行
-  cleanups.push(
-    window.electronAPI.on(IPC_EVENT.settingsChanged, ({ key, value }) => {
-      if (key !== SETTINGS_KEYS.systemLogMaxLines) return
-      const cap = Number(value)
-      if (!Number.isFinite(cap) || cap < 1) return
-      maxLines.value = Math.floor(cap)
-      if (lines.value.length > maxLines.value) {
-        lines.value = lines.value.slice(-maxLines.value)
-      }
-    }),
-  )
-
-  // 系统消息（success/error/warning/info/plain）
-  cleanups.push(
-    window.electronAPI.on('event:output', ({ type, text }) => {
-      const config: Record<string, { label: string; color: string }> = {
-        success: { label: '成功', color: 'var(--el-color-success)' },
-        error: { label: '报错', color: 'var(--el-color-danger)' },
-        warning: { label: '警告', color: 'var(--el-color-warning)' },
-        info: { label: '信息', color: 'var(--el-color-primary)' },
-        plain: { label: '', color: 'var(--el-text-color-secondary)' },
-      }
-      const c = config[type] || { label: '其他', color: 'var(--el-text-color-secondary)' }
-      const now = new Date()
-      const ts = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`
-      const html = `<span style="color:var(--el-text-color-secondary);white-space:nowrap">${ts}</span> <span style="color:${c.color}">[${c.label}]</span> <span style="color:var(--el-text-color-primary);white-space:pre-wrap">${escapeHtml(text)}</span><br>`
-      appendLine(html)
-    }),
-  )
-
-  // 日志条目（从 store 同步）
-  const syncLogEntries = () => {
-    const store = systemLogStore
-    while (syncedCount < store.entries.length) {
-      const item = store.entries[syncedCount]
-      const time = formatTime(item.timestamp)
-      const tag = escapeHtml(item.info || 'log')
-      const html = `<span style="color:var(--el-text-color-secondary);white-space:nowrap">${time}</span> <span style="color:var(--el-color-danger)">[${tag}]</span> <span style="color:var(--el-text-color-primary);white-space:pre-wrap">${escapeHtml(item.message)}</span><br>`
-      appendLine(html)
-      syncedCount++
-    }
-  }
-  syncLogEntries()
-  const unwatch = systemLogStore.$subscribe(() => {
-    syncLogEntries()
+onMounted(() => {
+  syncFromStore()
+  // store 记录或行数上限变化时增量同步并裁剪
+  unwatch = logStore.$subscribe(() => {
+    syncFromStore()
   })
-  cleanups.push(() => unwatch())
-
-  // 统一存入 __homeCleanups 供自动清理
-  window.__homeCleanups = window.__homeCleanups || []
-  window.__homeCleanups.push(...cleanups)
 })
 
 onUnmounted(() => {
-  for (const fn of cleanups) fn()
+  if (unwatch) unwatch()
 })
-
-let syncedCount = 0
-
-function formatTime(ts: number): string {
-  const d = new Date(ts)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
-}
-
-const htmlEscapes: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
-function escapeHtml(text: string): string {
-  return text.replace(/[&<>"']/g, (ch) => htmlEscapes[ch])
-}
 </script>
 
 <style scoped>

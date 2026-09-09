@@ -77,12 +77,6 @@ export class TaskService extends EventEmitter {
       .sort((a, b) => b.createdAt - a.createdAt)
   }
 
-  getActiveTasks(): BackgroundTask[] {
-    return Array.from(this.tasks.values())
-      .filter((t) => t.status === 'pending' || t.status === 'running')
-      .map((t) => ({ ...t }))
-  }
-
   clearFinishedTasks(): void {
     for (const [taskId, task] of this.tasks) {
       if (task.status === 'completed' || task.status === 'failed') {
@@ -90,7 +84,6 @@ export class TaskService extends EventEmitter {
       }
     }
     this.queue = this.queue.filter((t) => t.status === 'pending')
-    this.emit('tasksCleared')
   }
 
   cancelTask(taskId: string): boolean {

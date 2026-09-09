@@ -42,9 +42,12 @@ function escapeHtml(text: string): string {
     .replace(/'/g, '&#39;')
 }
 
+// 真实 ESC 的 CSI 控制序列正则，含 ?/:/; 变体；主进程漏网时此处兜底
+const ANSI_CSI_RE = new RegExp(`${String.fromCharCode(27)}\\[[0-9;:?]*[a-zA-Z]`, 'g')
+
 // 将单行数据处理为 HTML 字符串
 function formatLine(data: { name: string; line: string }): string {
-  let cleanLine = data.line.replace(/\\x1b\[[0-9;]*[a-zA-Z]/g, '')
+  let cleanLine = data.line.replace(ANSI_CSI_RE, '')
   let hash = 0
   for (let i = 0; i < data.name.length; i++) hash = data.name.charCodeAt(i) + ((hash << 5) - hash)
   const colors = ['#00bcd4', '#4caf50', '#ffc107', '#2196f3', '#e91e63']
@@ -56,6 +59,11 @@ function formatLine(data: { name: string; line: string }): string {
 
 // 收集输出行，交由 rAF 统一刷入 DOM
 function collectLine(html: string) {
+  // 收集侧同样受上限约束，防窗口隐藏期间 rAF 挂起导致无限累积
+  const budget = maxLines - lineCount
+  if (pendingFragments.length >= budget && pendingFragments.length > 0) {
+    pendingFragments = budget > 0 ? pendingFragments.slice(-budget) : []
+  }
   pendingFragments.push(html)
   if (!rafScheduled) {
     rafScheduled = true
@@ -100,10 +108,18 @@ function trimExcessLines() {
   lineCount -= removed
 }
 
+// 吸底跟随：用户上翻阅读历史时暂停自动滚底，回到底部后恢复
+let stickToBottom = true
+
+function onOutputScroll() {
+  if (!scrollEl) return
+  stickToBottom = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight < 8
+}
+
 // 滚动到最新行
 function scrollToBottom() {
   nextTickScheduled = false
-  if (!scrollEl) return
+  if (!scrollEl || !stickToBottom) return
   scrollEl.scrollTop = scrollEl.scrollHeight
 }
 
@@ -118,15 +134,13 @@ function clearLog() {
 
 const cleanups: (() => void)[] = []
 
-onMounted(async () => {
+onMounted(() => {
   // 保存滚动容器引用
   scrollEl = outputEl.value || null
+  scrollEl?.addEventListener('scroll', onOutputScroll)
+  cleanups.push(() => scrollEl?.removeEventListener('scroll', onOutputScroll))
 
-  // 读取已保存的最大输出行数，未配置时保持默认值
-  const saved = await window.electronAPI.invoke(IPC.settings.get, SETTINGS_KEYS.systemLogMaxLines)
-  const cap = Number(saved)
-  if (Number.isFinite(cap) && cap >= 1) maxLines = Math.floor(cap)
-
+  // 订阅先行注册，行数上限读取失败不影响事件接入
   // 单行（兼容旧版，实际由 batch 覆盖）
   cleanups.push(
     window.electronAPI.on(IPC_EVENT.outputLine, (data) => {
@@ -153,6 +167,17 @@ onMounted(async () => {
       trimExcessLines()
     }),
   )
+
+  // 读取已保存的最大输出行数，未配置时保持默认值
+  window.electronAPI
+    .invoke(IPC.settings.get, SETTINGS_KEYS.systemLogMaxLines)
+    .then((saved) => {
+      const cap = Number(saved)
+      if (Number.isFinite(cap) && cap >= 1) maxLines = Math.floor(cap)
+    })
+    .catch(() => {
+      // 读取失败保持默认上限
+    })
 
   // 注册到全局清理
   window.__homeCleanups = window.__homeCleanups || []

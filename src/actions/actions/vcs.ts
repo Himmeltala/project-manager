@@ -54,7 +54,6 @@ async function runVcsCheck(ctx: ActionContext, idx: number): Promise<void> {
   const total = remote.length + local.length
   if (total > 0) ctx.warning(`[${proj.name}] ${total} 项变更`)
   else ctx.info(`[${proj.name}] 没有发现变更`)
-  await ctx.refreshNotifications()
 }
 
 // 获取更新策略

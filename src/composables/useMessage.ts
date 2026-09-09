@@ -4,10 +4,10 @@
  * @LastEditors: zhengrenfu
  * @LastEditTime: 2026-07-25 16:26:18
  * @FilePath: \src\composables\useMessage.ts
- * @Description: 消息确认弹窗封装；提示信息改为输出到日志面板
+ * @Description: 消息确认弹窗封装；提示信息写入统一走日志面板门面 store
  */
 import { ElMessageBox } from 'element-plus'
-import { IPC } from '@/ipc/channels'
+import { useSystemLogStore } from '@/stores/system-log.store'
 
 export async function useConfirm(title: string, message: string, danger = false): Promise<boolean> {
   try {
@@ -36,17 +36,17 @@ export async function usePrompt(title: string, label: string, defaultValue = '')
 }
 
 export function useSuccess(text: string) {
-  window.electronAPI.invoke(IPC.system.log, 'info', text)
+  useSystemLogStore().notify('success', text)
 }
 
 export function useError(text: string) {
-  window.electronAPI.invoke(IPC.system.log, 'error', text)
+  useSystemLogStore().notify('error', text)
 }
 
 export function useWarning(text: string) {
-  window.electronAPI.invoke(IPC.system.log, 'warning', text)
+  useSystemLogStore().notify('warning', text)
 }
 
 export function useInfo(text: string) {
-  window.electronAPI.invoke(IPC.system.log, 'info', text)
+  useSystemLogStore().notify('info', text)
 }

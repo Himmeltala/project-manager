@@ -11,6 +11,7 @@ import type { Project, ProjectSource } from '@/types/project'
 import type { RunningInfo } from '@/types/process'
 import type { ProjectAction } from '@/types/project-action'
 import type { useModal } from '@/composables/useModal'
+import type { SystemLogType } from '@/stores/system-log.store'
 
 // 函数式弹窗实例类型
 export type ModalInstance = ReturnType<typeof useModal>
@@ -49,13 +50,11 @@ export interface ActionContext {
   // 输入对话框，取消返回 null
   prompt(title: string, message: string, defaultValue?: string): Promise<string | null>
   // 写入日志面板
-  log(level: string, msg: string): void
+  log(level: SystemLogType, msg: string): void
   // 运行脚本并创建通知
   runScript(idx: number, command: string): Promise<void>
   // 刷新运行信息与脚本状态
   refreshRunningInfo(): Promise<void>
-  // 刷新通知面板
-  refreshNotifications(): Promise<void>
   // 重新加载项目列表（配置落盘后调用）
   reloadProjects(): Promise<void>
   // IPC 调用兜底通道

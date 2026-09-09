@@ -4,7 +4,7 @@
  * @LastEditors: zhengrenfu
  * @LastEditTime: 2026-09-04 09:30:49
  * @FilePath: \src\views\ProjectView\components\StatusBar.vue
- * @Description: 状态栏组件，显示项目计数和面板切换按钮
+ * @Description: 状态栏组件，徽标全部消费各面板 store，不含 IPC 直连
 -->
 
 <template>
@@ -28,11 +28,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { IPC } from '@/ipc/channels'
+import { computed, watch } from 'vue'
 
 import { useProjectStore } from '@/stores/project.store'
 import { useNotificationStore } from '@/stores/notification.store'
+import { useTaskStore } from '@/stores/task.store'
 
 defineProps<{
   showTerminal?: boolean
@@ -50,9 +50,20 @@ const emit = defineEmits<{
 
 const store = useProjectStore()
 const notifyStore = useNotificationStore()
-const activeTaskCount = ref(0)
-const scriptCount = ref(0)
+const taskStore = useTaskStore()
 const unreadCount = computed(() => notifyStore.unreadCount)
+const activeTaskCount = computed(() => taskStore.activeCount)
+
+// 任务起止即刷新脚本状态，覆盖脚本静默退出时无输出事件的长尾
+watch(
+  () => taskStore.activeCount,
+  () => {
+    store.refreshRunningScripts()
+  },
+)
+
+// 脚本任务数：各项目路径下运行中脚本数量之和
+const scriptCount = computed(() => Object.values(store.runningScripts).reduce((sum, list) => sum + list.length, 0))
 
 const statusText = computed(() => {
   const total = store.projects.length
@@ -76,30 +87,6 @@ function toggleNotification() {
 function toggleTask() {
   emit('toggleTask')
 }
-
-async function refreshTaskCount() {
-  const tasks = await window.electronAPI.invoke(IPC.task.getActive)
-  activeTaskCount.value = tasks.length
-  scriptCount.value = await window.electronAPI.invoke(IPC.process.getTotalScriptsCount)
-}
-
-const sbCleanups: (() => void)[] = []
-// 统一存入 __homeCleanups 供全局清理
-window.__homeCleanups = window.__homeCleanups || []
-onMounted(async () => {
-  await refreshTaskCount()
-
-  sbCleanups.push(window.electronAPI.on('event:notificationCreated', () => notifyStore.reload()))
-  sbCleanups.push(window.electronAPI.on('event:notificationsCleared', () => notifyStore.reload()))
-  sbCleanups.push(window.electronAPI.on('event:taskStarted', () => refreshTaskCount()))
-  sbCleanups.push(window.electronAPI.on('event:taskCompleted', () => refreshTaskCount()))
-  sbCleanups.push(window.electronAPI.on('event:taskFailed', () => refreshTaskCount()))
-  window.__homeCleanups!.push(...sbCleanups)
-})
-
-onUnmounted(() => {
-  sbCleanups.forEach((fn) => fn())
-})
 </script>
 
 <style scoped>
