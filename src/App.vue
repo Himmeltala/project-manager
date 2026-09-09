@@ -57,9 +57,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { SETTINGS_KEYS } from '@/ipc/keys'
-import { IPC } from '@/ipc/channels'
+import { IPC, IPC_EVENT } from '@/ipc/channels'
 
 import { useRoute } from 'vue-router'
+import { useNotificationStore } from '@/stores/notification.store'
 import { useProjectStore } from '@/stores/project.store'
 import { Files, Tools, Connection } from '@element-plus/icons-vue'
 import BottomPanel from '@/components/BottomPanel.vue'
@@ -110,10 +111,9 @@ function toggleSystemLog() {
   }
 }
 
-// 通知面板定位项目，转发给对应页面处理
-function onLocateProject(name: string) {
-  showNotification.value = false
-  window.dispatchEvent(new CustomEvent('locateProject', { detail: name }))
+// 通知面板定位项目，携带源信息转发给对应页面处理
+function onLocateProject(payload: { name: string; source: string }) {
+  window.dispatchEvent(new CustomEvent('locateProject', { detail: payload }))
 }
 
 // 任务面板查看详情，转发给对应页面处理
@@ -147,6 +147,11 @@ onMounted(async () => {
   if (savedTheme) theme.value = savedTheme
   applyTheme(theme.value)
 
+  // 通知首拉独立进行，失败不阻塞也不拖后其余初始化
+  useNotificationStore()
+    .load()
+    .catch(() => {})
+
   await Promise.all([store.loadSources(), store.loadProjects()])
   await store.refreshRunningInfo()
 
@@ -161,10 +166,11 @@ onMounted(async () => {
     }, 1000)
   }
   const appCleanups: (() => void)[] = []
-  appCleanups.push(window.electronAPI.on('event:outputLine', () => throttledRefresh()))
-  appCleanups.push(window.electronAPI.on('event:projectStarted', () => throttledRefresh()))
-  appCleanups.push(window.electronAPI.on('event:projectStopped', () => throttledRefresh()))
-  appCleanups.push(window.electronAPI.on('event:portDetected', () => throttledRefresh()))
+  // 主进程按 50ms 批推送 outputBatch，作为子进程活跃信号触发节流刷新
+  appCleanups.push(window.electronAPI.on(IPC_EVENT.outputBatch, () => throttledRefresh()))
+  appCleanups.push(window.electronAPI.on(IPC_EVENT.projectStarted, () => throttledRefresh()))
+  appCleanups.push(window.electronAPI.on(IPC_EVENT.projectStopped, () => throttledRefresh()))
+  appCleanups.push(window.electronAPI.on(IPC_EVENT.portDetected, () => throttledRefresh()))
   // 恢复可见时补刷一次运行状态与脚本状态
   const onVisibilityChange = () => {
     if (!document.hidden) {
@@ -175,7 +181,7 @@ onMounted(async () => {
   document.addEventListener('visibilitychange', onVisibilityChange)
   appCleanups.push(() => document.removeEventListener('visibilitychange', onVisibilityChange))
   appCleanups.push(
-    window.electronAPI.on('event:themeChanged', (newTheme: string) => {
+    window.electronAPI.on(IPC_EVENT.themeChanged, (newTheme: string) => {
       theme.value = newTheme
       applyTheme(newTheme)
     }),

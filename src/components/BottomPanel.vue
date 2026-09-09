@@ -11,7 +11,10 @@
     <div class="resize-handle" @mousedown.prevent="onDragStart"></div>
     <ProcessOutputPanel v-show="showTerminal" />
     <AppMessagePanel v-show="showSystemLog" />
-    <NotificationList v-show="showNotification" @locateProject="(n: string) => emit('locateProject', n)" />
+    <NotificationList
+      v-show="showNotification"
+      @locateProject="(p: { name: string; source: string }) => emit('locateProject', p)"
+    />
     <TaskPanel v-show="showTask" @viewDetail="(id: string) => emit('viewDetail', id)" />
   </div>
 </template>
@@ -36,7 +39,7 @@ const props = defineProps<{
 const anyVisible = computed(() => props.showTerminal || props.showSystemLog || props.showNotification || props.showTask)
 
 const emit = defineEmits<{
-  (e: 'locateProject', name: string): void
+  (e: 'locateProject', payload: { name: string; source: string }): void
   (e: 'viewDetail', taskId: string): void
 }>()
 

@@ -25,12 +25,18 @@ export class NotificationService extends EventEmitter {
   private filePath: string
   private notifications: NotificationItem[] = []
   private settingsGetter?: (key: string, defaultVal?: any) => any
+  // 当前激活配置源提供者，创建通知时自动标注来源
+  private sourceProvider?: () => string
 
   constructor(filePath: string, settingsGetter?: (key: string, defaultVal?: any) => any) {
     super()
     this.filePath = filePath
     this.settingsGetter = settingsGetter
     this.load()
+  }
+
+  setSourceProvider(provider: () => string): void {
+    this.sourceProvider = provider
   }
 
   private load(): void {
@@ -71,6 +77,7 @@ export class NotificationService extends EventEmitter {
       title,
       message,
       projectName,
+      source: this.sourceProvider ? this.sourceProvider() : '',
       timestamp: Date.now(),
       read: false,
     }
@@ -91,6 +98,7 @@ export class NotificationService extends EventEmitter {
       type: notification.type,
       title: notification.title,
       projectName: notification.projectName,
+      source: notification.source,
       timestamp: notification.timestamp,
     })
 
@@ -103,10 +111,6 @@ export class NotificationService extends EventEmitter {
 
   getAll(): NotificationItem[] {
     return [...this.notifications]
-  }
-
-  getUnreadCount(): number {
-    return this.notifications.filter((n) => !n.read).length
   }
 
   markRead(id: string): boolean {

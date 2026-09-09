@@ -77,12 +77,12 @@
 <script setup lang="ts">
 // #region Imports
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { IPC } from '@/ipc/channels'
+import { IPC, IPC_EVENT } from '@/ipc/channels'
 
 import { Refresh, Management, Plus, Download, VideoPause, Bell } from '@element-plus/icons-vue'
 import { useProjectStore } from '@/stores/project.store'
-import { useNotificationStore } from '@/stores/notification.store'
 import { usePullStore } from '@/stores/pull.store'
+import { useTaskStore } from '@/stores/task.store'
 import { useInfo, useWarning, useError, useConfirm } from '@/composables/useMessage'
 import { useModal } from '@/composables/useModal'
 
@@ -110,8 +110,8 @@ import { getCapabilities } from '@/composables/useProjectType'
 
 // #region Store & State
 const store = useProjectStore()
-const notifyStore = useNotificationStore()
 const pullStore = usePullStore()
+const taskStore = useTaskStore()
 
 // 视图状态
 const allSourcesMode = ref(false)
@@ -226,7 +226,7 @@ async function handleCancel() {
   }
   pullStore.markCancelling(true)
   try {
-    await window.electronAPI.invoke(IPC.task.cancel, id)
+    await taskStore.cancelTask(id)
   } catch (e) {
     useError(`请求中断拉取失败: ${(e as Error).message || e}`)
     pullStore.markCancelling(false)
@@ -369,19 +369,60 @@ const onKeydown = (e: KeyboardEvent) => {
   }
 }
 
-// 通知面板定位项目 — 在项目列表中查找并高亮
-function onLocateProject(e: Event) {
-  const name = (e as CustomEvent<string>).detail
-  const project = filteredProjects.value.find((p: any) => p.name === name)
+// 通知面板定位项目 — 跨源时先切换到通知所属源，找不到再全源兜底查找
+async function onLocateProject(e: Event) {
+  const { name, source } = (e as CustomEvent<{ name: string; source: string }>).detail
+  if (pullStore.pulling) {
+    useWarning('正在拉取项目，暂不能切换源定位')
+    return
+  }
+  let sourceFailed = false
+  if (source && source !== store.activeSource) {
+    try {
+      await window.electronAPI.invoke(IPC.source.switch, source)
+      await Promise.all([store.loadProjects(), store.refreshRunningInfo()])
+      await store.loadSources()
+      // 退出"所有源"模式，切到通知所属源的视图
+      allSourcesMode.value = false
+      allProjects.value = []
+    } catch {
+      sourceFailed = true
+    }
+  }
+
+  let project = filteredProjects.value.find((p: any) => p.name === name)
+  // 无源字段或指定源不可用时兜底：拉全源列表查找（兼容历史通知与网络盘项目）
+  if (!project) {
+    try {
+      const all = (await window.electronAPI.invoke(IPC.project.loadAll)) as any[]
+      const idx = all.findIndex((p) => p.name === name)
+      if (idx >= 0) {
+        if (store.searchText) store.searchText = ''
+        allSourcesMode.value = true
+        allProjects.value = all.map((p, i) => ({ ...p, _origIdx: i + 1 }))
+        detectAllBuildTools()
+        project = filteredProjects.value.find((p: any) => p.name === name)
+      }
+    } catch {
+      // 全源列表读取失败沿用当前视图
+    }
+  }
+
   if (project) {
     window.dispatchEvent(new CustomEvent('highlightProject', { detail: (project as any)._origIdx }))
+  } else if (sourceFailed) {
+    useInfo(`源 "${source}" 已不可用，其他源中也未找到项目 "${name}"`)
+  } else if (source) {
+    useInfo(`项目 "${name}" 未在源 "${source}" 中找到`)
   } else {
-    useInfo(`项目 "${name}" 不在当前列表中，尝试搜索所有源...`)
+    useInfo(`项目 "${name}" 在当前与所有源列表中均未找到`)
   }
 }
 
+// 组件级清理登记，路由退出只执行自身监听，不动全局监听
+const routeCleanups: (() => void)[] = []
+
 onMounted(async () => {
-  await notifyStore.load()
   await store.refreshRunningScripts()
 
   // 周期刷新脚本运行状态，保证表格"脚本"列与后台进程一致（页面隐藏时暂停）
@@ -389,40 +430,24 @@ onMounted(async () => {
     if (!document.hidden) store.refreshRunningScripts()
   }, 10000)
 
-  const c1 = window.electronAPI.on('event:notificationCreated', () => {
-    notifyStore.reload()
-  })
-
-  const c2 = window.electronAPI.on('event:taskCompleted', ({ name }) => {
+  // 任务结束/失败按任务名前缀分流复位页面状态（任务列表刷新在 task.store 中央完成）
+  const onTaskCompleted = window.electronAPI.on(IPC_EVENT.taskCompleted, ({ name }) => {
     if (name.startsWith('扫描项目源:') || name.startsWith('刷新项目源:')) {
       store.loadSources()
       store.loadProjects()
     }
-  })
-
-  // 拉取任务正常结束：任务卡以"拉取项目:"开头时重置拉取状态
-  const c6 = window.electronAPI.on('event:taskCompleted', ({ name }) => {
     if (name.startsWith('拉取项目:')) {
       pullStore.markEnd()
     }
-  })
-
-  // 拉取任务失败或被中断：同样重置拉取状态
-  const c7 = window.electronAPI.on('event:taskFailed', ({ name }) => {
-    if (name.startsWith('拉取项目:')) {
-      pullStore.markEnd()
-    }
-  })
-
-  // 检查更新任务正常结束：任务名以"检查更新:"开头时复位按钮加载态
-  const c8 = window.electronAPI.on('event:taskCompleted', ({ name }) => {
     if (name.startsWith('检查更新:')) {
       checking.value = false
     }
   })
 
-  // 检查更新任务失败：同样复位按钮加载态
-  const c9 = window.electronAPI.on('event:taskFailed', ({ name }) => {
+  const onTaskFailed = window.electronAPI.on(IPC_EVENT.taskFailed, ({ name }) => {
+    if (name.startsWith('拉取项目:')) {
+      pullStore.markEnd()
+    }
     if (name.startsWith('检查更新:')) {
       checking.value = false
     }
@@ -448,15 +473,10 @@ onMounted(async () => {
   }
   window.addEventListener('viewTaskDetail', c5)
 
-  // 存入清理函数，防止 HMR/重挂时 listener 叠加
-  window.__homeCleanups = window.__homeCleanups || []
-  window.__homeCleanups.push(
-    c1,
-    c2,
-    c6,
-    c7,
-    c8,
-    c9,
+  // 登记到组件级清理数组，防止 HMR/重挂时 listener 叠加
+  routeCleanups.push(
+    onTaskCompleted,
+    onTaskFailed,
     c4,
     () => window.removeEventListener('viewTaskDetail', c5),
     () => clearInterval(scriptTimer),
@@ -466,9 +486,8 @@ onMounted(async () => {
 onUnmounted(() => {
   document.removeEventListener('keydown', onKeydown)
   window.removeEventListener('locateProject', onLocateProject)
-  // 清理 IPC listener，防止重挂叠加
-  const cleanups = window.__homeCleanups
-  if (cleanups) cleanups.forEach((fn) => fn())
+  // 只清理自身监听，避免误拆全局常驻监听
+  routeCleanups.forEach((fn) => fn())
 })
 // #endregion
 </script>

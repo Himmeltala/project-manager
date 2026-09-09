@@ -643,7 +643,6 @@ function registerIpc(): void {
   ipcMain.handle('process:isRunning', (_e, idx) => projectService.isRunning(idx))
   ipcMain.handle(IPC.process.getRunningInfo, () => projectService.getRunningInfo())
   ipcMain.handle(IPC.process.getAllRunningPaths, () => projectService.getAllRunningPaths())
-  ipcMain.handle(IPC.process.getTotalScriptsCount, () => projectService.getTotalScriptsCount())
   ipcMain.handle(IPC.process.getAllRunningScripts, () => projectService.getAllRunningScripts())
   ipcMain.handle(IPC.process.killPort, async (_e, port) => {
     const ok = processMgr.killPort(port)
@@ -761,14 +760,12 @@ function registerIpc(): void {
 
   // ── task ──
   ipcMain.handle(IPC.task.getAll, () => taskService.getAllTasks())
-  ipcMain.handle(IPC.task.getActive, () => taskService.getActiveTasks())
   ipcMain.handle(IPC.task.get, (_e, taskId) => taskService.getTask(taskId))
   ipcMain.handle(IPC.task.cancel, (_e, taskId) => taskService.cancelTask(taskId))
   ipcMain.handle(IPC.task.clearFinished, () => taskService.clearFinishedTasks())
 
   // ── notification ──
   ipcMain.handle(IPC.notification.getAll, () => notificationService.getAll())
-  ipcMain.handle(IPC.notification.getUnreadCount, () => notificationService.getUnreadCount())
   ipcMain.handle(IPC.notification.create, (_e, type, title, message, projectName) =>
     notificationService.createNotification(type, title, message, projectName),
   )
@@ -1199,6 +1196,8 @@ function initServices(): void {
 
   const notifyPath = join(assetDir, 'notifications.json')
   notificationService = new NotificationService(notifyPath, (key, defaultVal) => settings.get(key, defaultVal))
+  // 创建通知时自动标注当前配置源
+  notificationService.setSourceProvider(() => sourceMgr.getActiveSourceName())
 
   opRunner = new OperationRunner(taskService, notificationService, (payload) =>
     mainWindow?.webContents.send(IPC_EVENT.output, payload),

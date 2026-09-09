@@ -33,15 +33,17 @@
             <span
               v-if="n.projectName"
               class="notify-meta"
+              :title="n.projectName"
               style="cursor: pointer; text-decoration: underline dotted"
-              @click.stop="locate(n.projectName)"
-              >{{ n.projectName }}</span
+              @click.stop="locate(n)"
+              >{{ projectPathOf(n.projectName) }}</span
             >
           </div>
           <div class="notify-meta-row">
             <span class="notify-badge" :style="{ color: getColor(n.type), borderColor: getColor(n.type) }">{{
               getLabel(n.type)
             }}</span>
+            <span v-if="n.source" class="notify-source">{{ n.source }}</span>
             <span class="notify-time">{{ formatTime(n.timestamp) }}</span>
           </div>
           <div v-if="n.message" class="notify-msg">{{ n.message }}</div>
@@ -53,13 +55,25 @@
 
 <script setup lang="ts">
 import { useNotificationStore } from '@/stores/notification.store'
+import { useProjectStore } from '@/stores/project.store'
 import { NOTIFICATION_TYPE_META } from '@/types/notification'
 
 const emit = defineEmits<{
-  (e: 'locateProject', projectName: string): void
+  (e: 'locateProject', payload: { name: string; source: string }): void
 }>()
 
 const store = useNotificationStore()
+const projectStore = useProjectStore()
+
+/**
+ * 项目名转路径，用于副标题展示；当前源查不到时回退显示项目名
+ * @param name 项目名
+ * @returns 项目路径或原名
+ */
+function projectPathOf(name: string): string {
+  const project = projectStore.projects.find((p) => p.name === name)
+  return project?.path || name
+}
 
 function getColor(type: string): string {
   return NOTIFICATION_TYPE_META[type as keyof typeof NOTIFICATION_TYPE_META]?.color || 'var(--el-text-color-secondary)'
@@ -75,13 +89,13 @@ function formatTime(ts: number): string {
   return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-async function onClick(n: { id: string; projectName: string; read: boolean }) {
+async function onClick(n: { id: string; projectName: string; source?: string; read: boolean }) {
   await store.markRead(n.id)
-  if (n.projectName) locate(n.projectName)
+  if (n.projectName) locate(n)
 }
 
-function locate(projectName: string) {
-  emit('locateProject', projectName)
+function locate(n: { projectName: string; source?: string }) {
+  emit('locateProject', { name: n.projectName, source: n.source || '' })
 }
 
 async function markAllRead() {
@@ -159,10 +173,21 @@ async function clearAll() {
 .notify-title {
   font-size: var(--el-font-size-small);
   color: var(--el-text-color-primary);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .notify-meta {
   font-size: var(--app-font-size-mini);
   color: var(--el-text-color-secondary);
+  max-width: 45%;
+  display: inline-block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
 }
 .notify-meta-row {
   display: flex;
@@ -176,9 +201,18 @@ async function clearAll() {
   border-radius: 2px;
   padding: 0 4px;
 }
+.notify-source {
+  font-size: var(--app-font-size-mini);
+  color: var(--el-text-color-secondary);
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .notify-time {
   font-size: var(--app-font-size-mini);
   color: var(--el-text-color-secondary);
+  margin-left: auto;
 }
 .notify-msg {
   font-size: var(--el-font-size-extra-small);

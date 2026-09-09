@@ -538,12 +538,41 @@ const onClickOutside = () => {
   contextMenu.value.visible = false
   openSub.value = ''
 }
-const onHighlight = ((e: CustomEvent) => {
-  const origIdx = e.detail
+const onHighlight = (e: Event) => {
+  void handleHighlight(e)
+}
+
+async function handleHighlight(e: Event) {
+  const origIdx = (e as CustomEvent).detail
   const found = props.projects.find((p: any) => p._origIdx === origIdx)
   if (!found) return
   currentRowKey.value = origIdx
-}) as (e: Event) => void
+  // 目标可能位于其他分页：先翻页，再滚动到可视区
+  const pos = displayData.value.findIndex((p: any) => p.origIdx === origIdx)
+  if (pos < 0) return
+  const targetPage = Math.floor(pos / pageSize.value) + 1
+  if (targetPage !== currentPage.value) {
+    currentPage.value = targetPage
+  }
+  // 翻页后 EP 内部 watcher 晚一拍渲染行，等两轮帧确保 DOM 就绪
+  await nextTick()
+  await new Promise((resolve) => requestAnimationFrame(() => resolve(null)))
+  // 定位行在滚动容器外时自动滚动到可视区并居中
+  const table = tableRef.value as any
+  const rows: HTMLElement[] = Array.from(table?.$el?.querySelectorAll('.el-table__body-wrapper .el-table__row') || [])
+  const rowIdx = pagedData.value.findIndex((p: any) => p.origIdx === origIdx)
+  const rowEl = rows[rowIdx]
+  if (rowEl) {
+    const wrap = table?.$el?.querySelector('.el-table__body-wrapper .el-scrollbar__wrap') as HTMLElement | null
+    if (wrap) {
+      const wrapRect = wrap.getBoundingClientRect()
+      const rowRect = rowEl.getBoundingClientRect()
+      wrap.scrollTop += rowRect.top - wrapRect.top - (wrapRect.height - rowRect.height) / 2
+    } else {
+      rowEl.scrollIntoView({ block: 'nearest' })
+    }
+  }
+}
 // #endregion
 
 // #region Lifecycle
@@ -752,5 +781,16 @@ onUnmounted(() => {
 }
 .context-fade-leave-to {
   opacity: 0;
+}
+/* 定位高亮的当前行：背景之外加一圈主色边框，行位更醒目 */
+.table-wrapper :deep(.el-table__row.current-row > td.el-table__cell) {
+  border-top: 1.5px solid var(--el-color-primary);
+  border-bottom: 1.5px solid var(--el-color-primary);
+}
+.table-wrapper :deep(.el-table__row.current-row > td.el-table__cell:first-child) {
+  border-left: 1.5px solid var(--el-color-primary);
+}
+.table-wrapper :deep(.el-table__row.current-row > td.el-table__cell:last-child) {
+  border-right: 1.5px solid var(--el-color-primary);
 }
 </style>

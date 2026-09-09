@@ -17,6 +17,8 @@ export interface NotificationItem {
   title: string
   message: string
   projectName: string
+  // 产生时所属配置源名称；历史记录无此字段
+  source?: string
   timestamp: number
   read: boolean
 }
