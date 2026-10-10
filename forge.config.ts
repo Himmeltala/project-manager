@@ -13,6 +13,7 @@ const config: ForgeConfig = {
   makers: [
     new MakerSquirrel({
       name: 'project-manager',
+      title: '项目管理器',
       authors: 'zhengrenfu',
       description: 'Windows 桌面工具，用于管理多个项目的启动、停止、构建、SVN 更新等操作',
     }),
